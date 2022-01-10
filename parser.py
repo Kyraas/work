@@ -16,26 +16,30 @@ def get_html(url, params=None):
 
 
 def get_content(html):
-    soup = BeautifulSoup(html, 'html.parser')  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
-    headers = {}
-    item = {}
-    data = []
-    # cells = []
+    headers, item = {}, {}
+    cells, data = [], []
     
-    rows = soup.find_all('tr')  # находим все строки (1918 шт.)
-    thead = soup.find("thead").find_all("th")  # находим все заголовки (их 11 шт.)
+    soup = BeautifulSoup(html, 'html.parser')  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
+    table = soup.find("table", id="at_227")  # находим нужную нам таблицу
+    thead = table.find("thead").find_all("th")  # находим все заголовки (их 11 шт.)
     
     for i in range(len(thead)):
         headers[i] = thead[i].text.replace("\n", " ")  # вычленяем текст заголовков из html
 
-    for row in rows:
-        cells = row.find_all("td")  # получаем ячейки из каждой строки
-    print(cells)  # !!! хранит почему-то только последнюю ячейку
+    for row in table.find("tbody").find_all("tr"):  # находим все строки в таблице
+        cell = []
+        for td in row.find_all('td'):  # находим ячейки в каждой строке
+            cell.append(td.text.replace("\xa0", " "))  # вычленяем текст из каждой ячейки строки
+        if cell:  # если оно есть, то добавляем его в список cells
+            cells.append(cell)  # данный список содержит данные всех ячеек таблицы
+
+    for row in cells:  # цикл по строкам в cells
+        item = {}
+        for i in headers:  # цикл по заголовкам
+            item[headers[i]] = row[i]  # каждому заголовку сопостовляем ячейку из строки
+        data.append(item)  # полученный item добавляем в общий список данных data
+    print(data)
         
-    for i in headers:
-        item[headers[i]] = cells[i].text.replace("\xa0", " ")
-        data.append(item)
-            
 
 # Основная функция
 def parse():
