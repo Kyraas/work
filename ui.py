@@ -1,31 +1,22 @@
-from PyQt5 import QtWidgets, QtGui
-from table import Ui_MainWindow  # импорт нашего сгенерированного файла
-import sys
-import parser
- 
- 
-class mywindow(QtWidgets.QMainWindow):
+import sys  # Для доступа к аргументам командной строки
+from PyQt6.QtWidgets import QApplication, QMainWindow, QPushButton
+
+# Подкласс QMainWindow для настройки главного окна приложения
+class MainWindow(QMainWindow):
     def __init__(self):
-        super(mywindow, self).__init__()
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
+        super().__init__()  # При создании подкласса из класса Qt, чтобы разрешить Qt настраивать объект, всегда нужно вызывать функцию super __init__.
 
-        headers = ["Имя", "Очки", "Дата регистрации", "ID"]
-        model = QtGui.QStandardItemModel()
-        model.setHorizontalHeaderLabels(headers)
+        self.setWindowTitle("Приложение")
 
-        for row_number, row_data in enumerate(parser.data):
-            tableitem = []
-            model.insertRow(row_number)
-            for value in row_data:
-                item = QtGui.QStandardItem(str(value))
-                tableitem.append(item)
-            model.insertRow(row_number, tableitem)
+# Приложению нужен только один экземпляр QApplication
+# Передаем sys.argv, чтобы разрешить аргументы командной строки приложения
+# Если не нужно использовать аргументы командной строки, QApplication([]) тоже работает
+app = QApplication(sys.argv)
 
-        self.tableView.setModel(model)
- 
-app = QtWidgets.QApplication([])
-application = mywindow()
-application.show()
- 
-sys.exit(app.exec())
+# создание виджет Qt - окно.
+window = MainWindow()
+window.show()   # По умолчанию окно скрыто, поэтому нужно прописать show()
+
+# Запуск цикла событий.
+app.exec()
+# Учебник https://habr.com/ru/company/skillfactory/blog/599599/
