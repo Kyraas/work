@@ -52,21 +52,15 @@ def parse():
         print('Error')
         
 
-data = parse()
+data = parse()  # получаем результат функции parse
 
-# Создаем соединение с нашей базой данных
-conn = sqlite3.connect('parseddata.db')
+conn = sqlite3.connect('parseddata.db') # соединение с бд
+cur = conn.cursor() # создание курсора
 
-# Создаем курсор - это специальный объект который делает запросы и получает их результаты
-cur = conn.cursor()
-
-d = []
-
+d = []  # создаем список для будущих кортежей
 for i in data:
-    d.append(tuple(i.values()))
-# print(d)
+    d.append(tuple(i.values())) # добавляем в список данные, преобразованные в кортежи
 
-cur.executemany('INSERT INTO Сертификаты VALUES (?,?,?,?,?,?,?,?,?,?,?)', d)
-conn.commit()
-# Не забываем закрыть соединение с базой данных
-conn.close()
+cur.executemany('INSERT INTO Сертификаты VALUES (?,?,?,?,?,?,?,?,?,?,?)', d)    # добавляем данные в бд
+conn.commit()   # сохраняем изменения в бд
+conn.close()    # закрываем соединение с бд
