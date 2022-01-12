@@ -27,6 +27,7 @@ def get_content(html):
     
     for i in range(len(thead)):
         headers[i] = thead[i].text.replace("\n", " ")  # вычленяем текст заголовков из html
+        print(headers)
 
     for row in table.find("tbody").find_all("tr"):  # находим все строки в таблице (их 1914 шт.)
         cell = []
