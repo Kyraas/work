@@ -1,26 +1,27 @@
 # Образец создания TableView. Заполнение данными работает. Их можно менять
 # https://realpython.com/python-pyqt-database/
+# как делать нередактируемую таблицу: (через Designer) https://stpuackoverflow.com/questions/1328492/qtableview-not-allow-user-to-edit-cell
 import sys
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableView
+from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
+from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox, QTableView
+from tableview import Ui_MainWindow
 
-class Table(QMainWindow):
+class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
+        self.setupUi(self)  # Это нужно для инициализации нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
-        self.resize(1015, 600)
+        # self.resize(1015, 600)
         # Модель
-        self.model = QSqlTableModel(self)
+        self.model = QSqlTableModel(self)   # модель, позволяющая менять данные
         self.model.setTable("Сертификаты")  # Соединение модели со существующей таблицей "Сертификаты"
-        # self.model.setEditStrategy(QSqlTableModel.OnFieldChange)  # Строка 20 устанавливает стратегию редактирования модели в OnFieldChange. Эта стратегия позволяет модели автоматически обновлять данные в вашей базе данных, если пользователь изменяет какие-либо данные непосредственно в представлении.
         self.model.select() # Загрузка данных из таблицы и заполнение модели ими 
         # Представление
-        self.view = QTableView()    # Создание представления для отображения данных, содержащихся в модели
-        self.view.setModel(self.model)  # Соединение представление и модели
-        self.view.resizeColumnsToContents() # Изменение размеров колонок под длину данных
-        self.setCentralWidget(self.view)    # Расположение представления по центру
+        # self.view = QTableView()    # Создание представления для отображения данных, содержащихся в модели
+        self.tableView.setModel(self.model)  # Соединение представление и модели
+        # self.tableView.resizeColumnsToContents() # Изменение размеров колонок под длину данных
+        # self.setCentralWidget(self.tableView)    # Расположение представления по центру
 
 
 def createConnection(): # Соединение с БД
