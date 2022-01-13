@@ -1,3 +1,5 @@
+# В данном проекте создается TableWidget с последующим выводом данных из базы данных
+
 import sys
 
 from PyQt6.QtSql import QSqlDatabase, QSqlQuery
@@ -29,7 +31,7 @@ class Table(QMainWindow):
             self.view.setItem(rows, 8, QTableWidgetItem(query.value(8)))
             self.view.setItem(rows, 9, QTableWidgetItem(query.value(9)))
             self.view.setItem(rows, 10, QTableWidgetItem(query.value(10)))
-        self.view.resizeColumnsToContents()
+        # self.view.resizeColumnsToContents() # Подстраивает размер колонок под длину данных
         self.setCentralWidget(self.view)
 
         

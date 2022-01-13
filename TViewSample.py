@@ -1,7 +1,11 @@
+# Пример создания TableView. Данные нельзя менять, только просматривать
+
 import sys
 from PyQt6 import QtCore, QtGui, QtWidgets
+from PyQt6.QtSql import QSqlDatabase, QSqlQuery
 from PyQt6.QtCore import Qt
-from table import Ui_MainWindow
+from PyQt6.QtWidgets import QMessageBox
+from tableview import Ui_MainWindow
 
 
 class TableModel(QtCore.QAbstractTableModel):
@@ -32,21 +36,29 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.table = QtWidgets.QTableView()
 
-        data = [
-          [4, 9, 2],
-          [1, 0, 0],
-          [3, 5, 0],
-          [3, 3, 2],
-          [7, 8, 9],
-        ]
+        data = QSqlQuery("SELECT * FROM 'Сертификаты'")    # SQL-запрос
 
-        self.model = Ui_MainWindow(data)
+        self.model = TableModel(data)
         self.table.setModel(self.model)
 
         self.setCentralWidget(self.table)
 
+def createConnection():
+    con = QSqlDatabase.addDatabase("QSQLITE")
+    con.setDatabaseName("parseddata.db")
+    if not con.open():
+        QMessageBox.critical(
+            None,
+            "Таблица сертификатов - Ошибка!",
+            "Ошибка базы данных: %s" % con.lastError().databaseText(),
+        )
+        return False
+    return True
+
 
 app=QtWidgets.QApplication(sys.argv)
+if not createConnection():
+    sys.exit(1)
 window=MainWindow()
 window.show()
 sys.exit(app.exec())
