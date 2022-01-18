@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
+# антипаттерн UPSERT https://habr.com/ru/company/otus/blog/547094/
 import requests  # Получение HTTP-запросов, удобнее и стабильнее в работе, чем встроенная библиотека urllib
 from bs4 import BeautifulSoup  # Парсинг полученного контента
 import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных 
-import traceback
-import sys
 sqlite3.paramstyle = "named"
 
 # Константы
