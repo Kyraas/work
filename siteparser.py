@@ -2,7 +2,8 @@
 # антипаттерн UPSERT https://habr.com/ru/company/otus/blog/547094/
 import requests  # Получение HTTP-запросов, удобнее и стабильнее в работе, чем встроенная библиотека urllib
 from bs4 import BeautifulSoup  # Парсинг полученного контента
-import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных 
+import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных
+from datetime import datetime
 sqlite3.paramstyle = "named"
 
 # Константы
@@ -76,12 +77,15 @@ def update_table(data):
         # for i in data:
         #     d.append(tuple(i.values())) # добавляем в список данные, преобразованные в кортежи
 
-        update_query = """INSERT INTO Сертификаты VALUES (:id,:date_start,:date_end,:name,:docs,:scheme,:lab,:certification,:applicant,:requisites,:support) ON CONFLICT("№ сертификата") DO UPDATE SET "Дата внесения в реестр" = :date_start, "Срок действия сертификата" = :date_end, "Наименование средства (шифр)" = :name, "Наименования документов, требованиям которых соответствует средство" = :docs, "Схема сертификации"= :scheme, "Испытательная лаборатория" = :lab, "Орган по сертификации" = :certification, "Заявитель" = :applicant, "Реквизиты заявителя (индекс, адрес, телефон)" = :requisites, "Информация об окончании срока технической поддержки, полученная от заявителя" = :support WHERE "№ сертификата" = :id """
+        update_query = """INSERT INTO Сертификаты VALUES (:id,:date_start,:date_end,:name,:docs,:scheme,:lab,:certification,:applicant,:requisites,:support) ON CONFLICT("№ сертификата") DO UPDATE SET "Дата внесения в реестр" = date(:date_start), "Срок действия сертификата" = :date_end, "Наименование средства (шифр)" = :name, "Наименования документов, требованиям которых соответствует средство" = :docs, "Схема сертификации"= :scheme, "Испытательная лаборатория" = :lab, "Орган по сертификации" = :certification, "Заявитель" = :applicant, "Реквизиты заявителя (индекс, адрес, телефон)" = :requisites, "Информация об окончании срока технической поддержки, полученная от заявителя" = :support WHERE "№ сертификата" = :id """
 
         for i in data:
+            i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
+            i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
+            if i['support'] != '' and i['support'] != 'бессрочно':
+                i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
             cur.execute(update_query, i)
         cur.close()
-
         conn.commit()   # сохраняем изменения в бд
         if conn.total_changes != 0:
             print("Записи успешно добавлены")
