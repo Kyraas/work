@@ -79,6 +79,7 @@ def update_table(data):
 
         update_query = """INSERT INTO Сертификаты VALUES (:id,:date_start,:date_end,:name,:docs,:scheme,:lab,:certification,:applicant,:requisites,:support) ON CONFLICT("№ сертификата") DO UPDATE SET "Дата внесения в реестр" = date(:date_start), "Срок действия сертификата" = :date_end, "Наименование средства (шифр)" = :name, "Наименования документов, требованиям которых соответствует средство" = :docs, "Схема сертификации"= :scheme, "Испытательная лаборатория" = :lab, "Орган по сертификации" = :certification, "Заявитель" = :applicant, "Реквизиты заявителя (индекс, адрес, телефон)" = :requisites, "Информация об окончании срока технической поддержки, полученная от заявителя" = :support WHERE "№ сертификата" = :id """
 
+        # изменяем формат даты на YYYY-MM-DD для дальнейшей обработки в SQLite
         for i in data:
             i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
             i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
