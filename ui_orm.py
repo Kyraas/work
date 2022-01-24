@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-# QSortFilterSqlQueryModel
+# https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
 import sys
 
 from PyQt6 import QtCore
 from PyQt6.QtSql import QSqlDatabase, QSqlTableModel
 from PyQt6.QtWidgets import QApplication, QMainWindow, QMessageBox
 from tableview import Ui_MainWindow
+from parseddata.db import data
+from orm import *
 # import siteparser
 
 class Table(QMainWindow, Ui_MainWindow):
@@ -16,7 +18,7 @@ class Table(QMainWindow, Ui_MainWindow):
         # Соединение с нашей таблицей
         self.setWindowTitle("Таблица сертификатов")
         self.con = QSqlDatabase.addDatabase("QSQLITE") # Создаем объект БД с указанием типа (в данном случае sqlite)
-        self.con.setDatabaseName("parseddata.db")    # указываем название файла БД
+        self.con.setDatabaseName("parseddata_eng.db")    # указываем название файла БД
         self.con.open()
 
         # Представление
@@ -24,7 +26,7 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Модель
         self.model = QSqlTableModel()   # Модель только для чтения данных, для наборов результатов SQL-запросов
-        self.model.setTable("Сертификаты")
+        self.model.setTable("Certificates")
         self.model.select()
 
         # QSortFilterProxyModel обеспечивает поддержку сортировки и фильтрации данных, передаваемых между другой моделью (QSqlQueryModel) и представлением (tableView)
@@ -53,9 +55,12 @@ class Table(QMainWindow, Ui_MainWindow):
         # Соединяем виджеты с функциями
         # self.pushButton.clicked.connect(self.query1)
         # self.checkBox.stateChanged.connect(self.valid)
-        self.lineEdit.textChanged.connect(self.proxy.setFilterRegularExpression)
+        # self.lineEdit.textChanged.connect(self.proxy.setFilterRegularExpression)
 
-    # def query1(self):
+    def query1(self):
+        data = select_table
+
+
     # def valid(self):
     #     if self.checkBox.isChecked():
     #         self.proxy.eventFilter(" NOT BETWEEN date('Срок действия сертификата') AND date('now') ORDER BY date('Срок действия сертификата') ")
