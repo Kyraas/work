@@ -1,20 +1,15 @@
 # -*- coding: utf-8 -*-
-from sqlalchemy import create_engine, Column, String, Date
+from sqlalchemy import Column, String, Date, create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session
-import sqlalchemy as db
-
-engine = create_engine('sqlite:///parseddata_eng.db')
-connection = engine.connect()
 
 Base = declarative_base()
-session = Session(bind=engine)
+engine = create_engine('sqlite:///parseddata_eng.db')
 
 class Certificate(Base):
     __tablename__ = 'certificates'
     id = Column(String, primary_key=True)
-    date_start = Column(Date, nullable=False)
-    date_end = Column(Date, nullable=False)
+    date_start = Column(String, nullable=False)
+    date_end = Column(String, nullable=False)
     name = Column(String, nullable=False)
     docs = Column(String, nullable=False)
     scheme = Column(String, nullable=False)
@@ -24,7 +19,5 @@ class Certificate(Base):
     requisites = Column(String, nullable=False)
     support = Column(String)
 
-query = db.select(Certificate)
-ResultProxy = connection.execute(query)
-ResultSet = ResultProxy.fetchall()
-print(ResultSet)
+    def __repr__(self):
+        return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % (self.id, self.date_start, self.date_end, self.name, self.docs, self.scheme, self.lab, self.certification, self.applicant, self.requisites, self.support)
