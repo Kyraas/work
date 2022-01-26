@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 # https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
-# https://stackoverflow.com/questions/14189693/how-to-set-data-inside-a-qabstracttablemodel
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6 import QtCore
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
-from orm import Certificate as tbl
+import sqlalchemy as db
+from orm import Certificate, conn
+from sqlalchemy.sql import func
 # import siteparser
 
 class Table(QMainWindow, Ui_MainWindow):
@@ -16,7 +17,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("Таблица сертификатов")
 
         # Модель
-        self.model = MyTableModel(self)
+        # results = conn.execute(db.select([Certificate])).fetchall()
+        self.model = MyTableModel()
 
         # Представление
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
@@ -39,13 +41,27 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.resizeRowsToContents()   # Изменение размеров строк под длину данных
         
         # Соединяем виджеты с функциями
-        self.pushButton.clicked.connect(self.model.reflesh)
+        # self.pushButton.clicked.connect(self.refresh)
         self.checkBox.stateChanged.connect(self.query)
-        # self.lineEdit.textChanged.connect(self.proxy.setFilterRegularExpression)
+        self.lineEdit.textChanged.connect(self.search)
+
+    # def refresh(self):
+        # results = conn.execute(db.select([Certificate])).fetchall()
+        # text = 'Гром'
+        # self.model.update(results)
 
     def query(self):
         if self.checkBox.isChecked():
-            self.model.valid
+            results = conn.execute(db.select([Certificate]).filter(Certificate.date_end >= func.current_date()).order_by(Certificate.date_end)).fetchall()
+            self.model.update(results)
+        else:
+            results = conn.execute(db.select([Certificate])).fetchall()
+            self.model.update(results)
+
+    def search(self, text):
+        print(text)
+        results = conn.execute(db.select([Certificate]).filter(Certificate.name.like('%{}%'.format(text)))).fetchall()
+        self.model.update(results)
     
 app = QApplication(sys.argv)
 win = Table()
