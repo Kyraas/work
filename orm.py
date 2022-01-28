@@ -2,7 +2,7 @@
 from sqlalchemy import Column, String, Date, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.sql import func
+from sqlalchemy.dialects.sqlite import insert
 
 Base = declarative_base()
 engine = create_engine('sqlite:///parseddata_eng.db')
@@ -27,14 +27,11 @@ class Certificate(Base):
     def __repr__(self):
         return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % (self.id, self.date_start, self.date_end, self.name, self.docs, self.scheme, self.lab, self.certification, self.applicant, self.requisites, self.support)
 
-
-def alltbl():
-    result = session.query(Certificate).all()
-    return result
-
-def valid_data():
-    result = session.query(Certificate).filter(Certificate.date_end <= func.current_date()).order_by(Certificate.date_end).all()
-    return result
-
-# text="Гром"
-# res = session.query(Certificate).filter(Certificate.name.ilike(text)).all()
+    def upsert(*args):
+        print(args)
+        stmt = insert(Certificate).values(args)
+        print(args[0])
+        stmt = stmt.on_conflict_do_update(
+            constraint=Certificate.id.like(args[0]),
+            set_=dict(dictdata=args)
+        )

@@ -3,10 +3,10 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow
 from PyQt6 import QtCore
-from tableview import Ui_MainWindow
+from test_labels import Ui_MainWindow
 from AbstractModel import MyTableModel
+from orm import Certificate as tbl, conn
 import sqlalchemy as db
-from orm import Certificate, conn
 from sqlalchemy.sql import func
 # import siteparser
 
@@ -17,7 +17,6 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("Таблица сертификатов")
 
         # Модель
-        # results = conn.execute(db.select([Certificate])).fetchall()
         self.model = MyTableModel()
 
         # Представление
@@ -41,27 +40,30 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.resizeRowsToContents()   # Изменение размеров строк под длину данных
         
         # Соединяем виджеты с функциями
-        # self.pushButton.clicked.connect(self.refresh)
-        self.checkBox.stateChanged.connect(self.query)
-        self.lineEdit.textChanged.connect(self.search)
+        # self.refreshButton.clicked.connect(self.refresh)
+        self.checkBox.stateChanged.connect(self.valid)
+        self.searchBar.textChanged.connect(self.search)
+        self.searchButton.clicked.connect(self.myquery)
 
     # def refresh(self):
-        # results = conn.execute(db.select([Certificate])).fetchall()
-        # text = 'Гром'
-        # self.model.update(results)
+        # results = conn.execute(db.select([tbl])).fetchall()
 
-    def query(self):
+    def valid(self):
+        valid_filter = tbl.date_end >= func.current_date()
         if self.checkBox.isChecked():
-            results = conn.execute(db.select([Certificate]).filter(Certificate.date_end >= func.current_date()).order_by(Certificate.date_end)).fetchall()
-            self.model.update(results)
-        else:
-            results = conn.execute(db.select([Certificate])).fetchall()
-            self.model.update(results)
+            self.myquery(valid_filter)
+
 
     def search(self, text):
-        print(text)
-        results = conn.execute(db.select([Certificate]).filter(Certificate.name.like('%{}%'.format(text)))).fetchall()
-        self.model.update(results)
+        search_filter = tbl.name.like('%{}%'.format(text)) | tbl.docs.like('%{}%'.format(text)) | tbl.scheme.like('%{}%'.format(text)) | tbl.lab.like('%{}%'.format(text)) | tbl.certification.like('%{}%'.format(text)) | tbl.applicant.like('%{}%'.format(text)) | tbl.requisites.like('%{}%'.format(text)) | tbl.id.like('%{}%'.format(text)) | tbl.date_start.like('%{}%'.format(text)) | tbl.date_end.like('%{}%'.format(text)) | tbl.support.like('%{}%'.format(text))
+        self.myquery(search_filter)
+
+
+    def myquery(self, *args):
+        instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
+        self.model.update(instanse)
+        self.tableView.resizeRowsToContents()
+
     
 app = QApplication(sys.argv)
 win = Table()
