@@ -42,7 +42,8 @@ class Table(QMainWindow, Ui_MainWindow):
         # Соединяем виджеты с функциями
         # self.refreshButton.clicked.connect(self.refresh)
         self.checkBox.stateChanged.connect(self.valid)
-        self.searchBar.textChanged.connect(self.search)
+        # self.searchBar.textChanged.connect(self.search)
+        self.searchBar.textChanged.connect(self.search_and_filter)
         self.searchButton.clicked.connect(self.myquery)
 
     # def refresh(self):
@@ -57,6 +58,17 @@ class Table(QMainWindow, Ui_MainWindow):
     def search(self, text):
         search_filter = tbl.name.like('%{}%'.format(text)) | tbl.docs.like('%{}%'.format(text)) | tbl.scheme.like('%{}%'.format(text)) | tbl.lab.like('%{}%'.format(text)) | tbl.certification.like('%{}%'.format(text)) | tbl.applicant.like('%{}%'.format(text)) | tbl.requisites.like('%{}%'.format(text)) | tbl.id.like('%{}%'.format(text)) | tbl.date_start.like('%{}%'.format(text)) | tbl.date_end.like('%{}%'.format(text)) | tbl.support.like('%{}%'.format(text))
         self.myquery(search_filter)
+        
+        
+    def search_and_filter(self):
+        search_filter = tbl.name.like('%{}%'.format(text)) | tbl.docs.like('%{}%'.format(text)) | tbl.scheme.like('%{}%'.format(text)) | tbl.lab.like('%{}%'.format(text)) | tbl.certification.like('%{}%'.format(text)) | tbl.applicant.like('%{}%'.format(text)) | tbl.requisites.like('%{}%'.format(text)) | tbl.id.like('%{}%'.format(text)) | tbl.date_start.like('%{}%'.format(text)) | tbl.date_end.like('%{}%'.format(text)) | tbl.support.like('%{}%'.format(text))
+        if self.checkBox.isChecked():
+            search_filter = search_filter & tbl.date_end >= func.current_date()
+        # if self.checkBox2.isChecked():
+            # search_filter = search_filter & 
+            # ...
+        self.myquery(search_filter)
+        
 
 
     def myquery(self, *args):
