@@ -33,15 +33,15 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
             value = self.datatable[index.row()][2]  # колонка с датами окончания сертификата
             sup = self.datatable[index.row()][10]   # колонка с датами окончания поддержки
             if len(sup) == 10: 
-                if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < datetime.date(datetime.today())) and (value < datetime.date(datetime.today())):    # Если и сертификат, и подержка не действительны
+                if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < datetime.date(datetime.today())) and (datetime.date(datetime.strptime(value, "%Y-%m-%d")) < datetime.date(datetime.today())):    # Если и сертификат, и подержка не действительны
                     return QtGui.QColor('#ff7f7f')  # красный
                 if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < datetime.date(datetime.today()):    # Если поддержка не действительна
                     return QtGui.QColor('#ff9fc3')  # розовый
 
-            if isinstance(value, date):
-                if value < datetime.date(datetime.today()):    # Если сертификат не действителен
+            if len(value) == 10:
+                if datetime.date(datetime.strptime(value, "%Y-%m-%d")) < datetime.date(datetime.today()):    # Если сертификат не действителен
                     return QtGui.QColor('#ffecb7')  # желтый
-                if value < half_year(): # Если сертификат истечет через полгода
+                if datetime.date(datetime.strptime(value, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
                     return QtGui.QColor('#e8eaed')  # светло-серый
 
         if role == Qt.ItemDataRole.DisplayRole: # DisplayRole фактически принимает только строковые значения. В иных случаях необходимо форматировать данные в строку

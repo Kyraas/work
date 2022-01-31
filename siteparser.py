@@ -4,7 +4,7 @@ import requests  # Получение HTTP-запросов, удобнее и �
 from bs4 import BeautifulSoup  # Парсинг полученного контента
 import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных
 from datetime import datetime
-from orm import Certificate as tbl
+from orm import Certificate as tbl, Session
 sqlite3.paramstyle = "named"
 
 # Константы
@@ -67,43 +67,21 @@ def parse():
     else:
         print("Error")
 
-
 def update_table(data):
     try:
-        conn = sqlite3.connect("parseddata.db") # соединение с бд
-        cur = conn.cursor() # создание курсора
-        print("Установлено соединение с SQLite")
-
-        # d = []  # создаем список для будущих кортежей
-        # for i in data:
-        #     d.append(tuple(i.values())) # добавляем в список данные, преобразованные в кортежи
-
-        # update_query = """INSERT INTO Сертификаты VALUES (:id,:date_start,:date_end,:name,:docs,:scheme,:lab,:certification,:applicant,:requisites,:support) ON CONFLICT("№ сертификата") DO UPDATE SET "Дата внесения в реестр" = date(:date_start), "Срок действия сертификата" = :date_end, "Наименование средства (шифр)" = :name, "Наименования документов, требованиям которых соответствует средство" = :docs, "Схема сертификации"= :scheme, "Испытательная лаборатория" = :lab, "Орган по сертификации" = :certification, "Заявитель" = :applicant, "Реквизиты заявителя (индекс, адрес, телефон)" = :requisites, "Информация об окончании срока технической поддержки, полученная от заявителя" = :support WHERE "№ сертификата" = :id """
-
         # изменяем формат даты на YYYY-MM-DD для дальнейшей обработки в SQLite
         for i in data:
             i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
-            i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
+            if i['date_end'] != '' and i['date_end'] != 'бессрочно':
+                i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
             if i['support'] != '' and i['support'] != 'бессрочно':
                 i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
             tbl.upsert(i)
-            # cur.execute(update_query, i)
-        cur.close()
-        conn.commit()   # сохраняем изменения в бд
-        if conn.total_changes != 0:
-            print("Записи успешно добавлены")
+        Session.commit()   # сохраняем изменения в бд
+        print("База данных успешно обновлена.")
+        success = "База данных успешно обновлена."
+        return success
+
 
     except sqlite3.Error as error:
         print("Ошибка при работе с SQLite: ", error)
-
-    finally:
-        if conn:
-            print(f"Всего изменено {conn.total_changes} строк.")
-            conn.close()    # закрываем соединение с бд
-            print("Соединение с SQLite закрыто")
-
-def main():
-    data = parse()  # получаем результат функции parse
-    update_table(data)
-
-main()
