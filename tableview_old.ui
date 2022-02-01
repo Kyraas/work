@@ -19,23 +19,29 @@
      <widget class="QGroupBox" name="groupBox">
       <property name="minimumSize">
        <size>
-        <width>370</width>
+        <width>350</width>
+        <height>160</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>350</width>
         <height>160</height>
        </size>
       </property>
       <property name="title">
-       <string>Обозначения цветов и фильтры:</string>
+       <string>Обозначения цветов:</string>
       </property>
       <widget class="QWidget" name="verticalLayoutWidget">
        <property name="geometry">
         <rect>
          <x>10</x>
          <y>20</y>
-         <width>358</width>
-         <height>141</height>
+         <width>341</width>
+         <height>136</height>
         </rect>
        </property>
-       <layout class="QVBoxLayout" name="verticalLayout_filters">
+       <layout class="QVBoxLayout" name="verticalLayout_2">
         <item>
          <layout class="QFormLayout" name="formLayout_red">
           <item row="0" column="0">
@@ -67,7 +73,7 @@ border-color: rgb(0, 0, 0);</string>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QCheckBox" name="checkBox_red">
+           <widget class="QLabel" name="label_red_text">
             <property name="text">
              <string>Сертифкат и техническая поддержка не действительны</string>
             </property>
@@ -106,7 +112,7 @@ border-color: rgb(0, 0, 0);</string>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QCheckBox" name="checkBox_pink">
+           <widget class="QLabel" name="label_pink_text">
             <property name="text">
              <string>Техническая поддержка не действительна</string>
             </property>
@@ -145,7 +151,7 @@ border-color: rgb(0, 0, 0);</string>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QCheckBox" name="checkBox_yellow">
+           <widget class="QLabel" name="label_yellow_text">
             <property name="text">
              <string>Сертифкат не действителен</string>
             </property>
@@ -184,7 +190,7 @@ border-color: rgb(0, 0, 0);</string>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QCheckBox" name="checkBox_gray">
+           <widget class="QLabel" name="label_gray_text">
             <property name="text">
              <string>Срок сертификата истечёт меньше, чем через полгода</string>
             </property>
@@ -223,7 +229,7 @@ border-color: rgb(0, 0, 0);</string>
            </widget>
           </item>
           <item row="0" column="1">
-           <widget class="QCheckBox" name="checkBox_white">
+           <widget class="QLabel" name="label_white_text">
             <property name="text">
              <string>Сертифкат и техническая поддержка действительны</string>
             </property>
@@ -242,7 +248,7 @@ border-color: rgb(0, 0, 0);</string>
         <property name="sizeConstraint">
          <enum>QLayout::SetDefaultConstraint</enum>
         </property>
-        <item>
+        <item alignment="Qt::AlignTop">
          <widget class="QLabel" name="label">
           <property name="minimumSize">
            <size>
@@ -258,7 +264,7 @@ border-color: rgb(0, 0, 0);</string>
           </property>
          </widget>
         </item>
-        <item>
+        <item alignment="Qt::AlignTop">
          <widget class="QLineEdit" name="searchBar">
           <property name="minimumSize">
            <size>
@@ -280,26 +286,38 @@ border-color: rgb(0, 0, 0);</string>
           </property>
          </widget>
         </item>
+        <item alignment="Qt::AlignTop">
+         <widget class="QPushButton" name="refreshButton">
+          <property name="minimumSize">
+           <size>
+            <width>200</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <pointsize>12</pointsize>
+           </font>
+          </property>
+          <property name="toolTip">
+           <string>Требуется интернет-соединение</string>
+          </property>
+          <property name="text">
+           <string>Обновить базу данных</string>
+          </property>
+         </widget>
+        </item>
        </layout>
       </item>
-      <item alignment="Qt::AlignRight">
-       <widget class="QPushButton" name="refreshButton">
-        <property name="minimumSize">
-         <size>
-          <width>200</width>
-          <height>30</height>
-         </size>
-        </property>
+      <item>
+       <widget class="QCheckBox" name="checkBox">
         <property name="font">
          <font>
-          <pointsize>12</pointsize>
+          <pointsize>10</pointsize>
          </font>
         </property>
-        <property name="toolTip">
-         <string>Требуется интернет-соединение</string>
-        </property>
         <property name="text">
-         <string>Обновить базу данных</string>
+         <string>Действующие сертификаты</string>
         </property>
        </widget>
       </item>

@@ -27,21 +27,23 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
 
 
     def data(self, index, role):    # Параметр role описывает, какого рода информацию метод должен возвращать при этом вызове.
+        now_date = datetime.date(datetime.today())
         if not index.isValid():
             return None
         if role == Qt.ItemDataRole.BackgroundRole:
-            value = self.datatable[index.row()][2]  # колонка с датами окончания сертификата
+            date_end = self.datatable[index.row()][2]  # колонка с датами окончания сертификата
             sup = self.datatable[index.row()][10]   # колонка с датами окончания поддержки
+
             if len(sup) == 10: 
-                if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < datetime.date(datetime.today())) and (datetime.date(datetime.strptime(value, "%Y-%m-%d")) < datetime.date(datetime.today())):    # Если и сертификат, и подержка не действительны
+                if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date) and (datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date):    # Если и сертификат, и подержка не действительны
                     return QtGui.QColor('#ff7f7f')  # красный
-                if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < datetime.date(datetime.today()):    # Если поддержка не действительна
+                if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
                     return QtGui.QColor('#ff9fc3')  # розовый
 
-            if len(value) == 10:
-                if datetime.date(datetime.strptime(value, "%Y-%m-%d")) < datetime.date(datetime.today()):    # Если сертификат не действителен
+            if len(date_end) == 10:
+                if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date:    # Если сертификат не действителен
                     return QtGui.QColor('#ffecb7')  # желтый
-                if datetime.date(datetime.strptime(value, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
+                elif datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
                     return QtGui.QColor('#e8eaed')  # светло-серый
 
         if role == Qt.ItemDataRole.DisplayRole: # DisplayRole фактически принимает только строковые значения. В иных случаях необходимо форматировать данные в строку

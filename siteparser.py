@@ -10,16 +10,20 @@ sqlite3.paramstyle = "named"
 # Константы
 URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
   
-# Заголовки нужны для того, чтобы сервер не посчитал нас за ботов, не заблокировал нас    
+# Заголовки нужны для того, чтобы сервер не посчитал нас за ботов и не заблокировал   
 HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
                          "Chrome/96.0.4664.110 Safari/537.36 OPR/82.0.4227.43", "accept": "*/*"}
 
 
 # params - дополнительные параметры (опционально), например номер страницы
 def get_html(url, params=None):
-    r = requests.get(url, headers=HEADERS, params=params)
-    return r
-
+    try:
+        r = requests.get(url, headers=HEADERS, params=params)
+        return r
+    except requests.exceptions.ConnectionError:
+        print("Ошибка соединения")
+        return False
+        
 
 def get_content(html):
     headers = {
@@ -40,9 +44,6 @@ def get_content(html):
     
     soup = BeautifulSoup(html, "html.parser")  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
     table = soup.find("table", id="at_227")  # находим нужную нам таблицу
-    # thead = table.find("thead").find_all("th")  # находим все заголовки (их 11 шт.)
-    # for i in range(len(thead)):
-    #     headers[i] = thead[i].text.replace("\n", " ")  # вычленяем текст заголовков из html
 
     for row in table.find("tbody").find_all("tr"):  # находим все строки в таблице (их 1914 шт.)
         cell = []
@@ -62,10 +63,14 @@ def get_content(html):
 # Основная функция
 def parse():
     html = get_html(URL)
-    if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK" 
-        return get_content(html.text)
+    if html != False:
+        if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK" 
+            return get_content(html.text)
+        else:
+            return False
     else:
-        print("Error")
+        return False
+
 
 def update_table(data):
     try:
@@ -78,10 +83,8 @@ def update_table(data):
                 i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
             tbl.upsert(i)
         Session.commit()   # сохраняем изменения в бд
-        print("База данных успешно обновлена.")
         success = "База данных успешно обновлена."
         return success
-
 
     except sqlite3.Error as error:
         print("Ошибка при работе с SQLite: ", error)
