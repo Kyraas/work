@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 # https://stackoverflow.com/questions/17697352/pyqt-implement-a-qabstracttablemodel-for-display-in-qtableview
 # https://www.pythonguis.com/tutorials/qtableview-modelviews-numpy-pandas/
+# https://doc.qt.io/qtforpython-5/overviews/model-view-programming.html?highlight=layoutabouttobechanged
+import operator
 from datetime import *
 from PyQt6.QtCore import QAbstractTableModel, Qt, QVariant, QModelIndex
 from PyQt6 import QtGui
@@ -26,6 +28,9 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
     def update(self, dataIn):
         self.datatable = dataIn
         self.layoutChanged.emit()
+
+    def row(self, index = QModelIndex()):
+        return len(self.datatable)
 
     def rowCount(self, index = QModelIndex()):
         if len(self.datatable) <= self.rowsLoaded:  # Если строк меньше ограничения (15 строк), то возвращаем кол-во строк
@@ -85,3 +90,32 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
         if role != Qt.ItemDataRole.DisplayRole or orientation != Qt.Orientation.Horizontal:
             return QVariant()
         return headers[section]
+
+    def sort(self, col, order):
+        self.layoutAboutToBeChanged.emit()
+        self.datatable = sorted(self.datatable, key=operator.itemgetter(col), reverse=(order != Qt.SortOrder.AscendingOrder))
+        self.layoutChanged.emit()
+
+    # def filter(self, filter, index, role = Qt.ItemDataRole.DisplayRole):
+    #     now_date = datetime.date(datetime.today())
+    #     value = self.datatable[index.row()][index.column()]
+    #     date_end = self.datatable[index.row()][3]  # колонка с датами окончания сертификата
+    #     sup = self.datatable[index.row()][11]   # колонка с датами окончания поддержки
+
+    #     if role == Qt.ItemDataRole.DisplayRole:
+    #         if len(sup) == 10: 
+    #             if filter == 1:
+    #                 if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date) and (datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date):    # Если и сертификат, и подержка не действительны
+    #                     return value  # красный
+    #             if filter == 2:
+    #                 if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
+    #                     return value  # розовый
+    #         if len(date_end) == 10:
+    #             if filter == 3:
+    #                 if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date:    # Если сертификат не действителен
+    #                     return value  # желтый
+    #             if filter == 4:
+    #                 if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
+    #                     return value  # светло-серый
+    #     else:
+    #         return QVariant()

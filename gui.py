@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 # https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
-from re import search
 import sys
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from PyQt6 import QtCore
+from PyQt6.QtCore import Qt, QSortFilterProxyModel
+from SFPModel import MySortFilterProxyModel
 from tableview import Ui_MainWindow
-from AbstractModel import MyTableModel
+# from AbstractModel import MyTableModel
+from TestAbstractModel import TestTableModel
 from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
@@ -21,11 +22,18 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Установлено соединение с SQL.')
 
         # Модель
-        self.model = MyTableModel()
+        # self.model = MyTableModel()
+        self.model = TestTableModel()
+
+        # self.proxy = QSortFilterProxyModel(self)
+        self.proxy = MySortFilterProxyModel()
+        self.proxy.setSourceModel(self.model)
+        # self.proxy.setDynamicSortFilter(True)
 
         # Представление
+        self.tableView.setModel(self.proxy)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
-        self.tableView.setModel(self.model)
+        # self.tableView.setModel(self.model)
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.setColumnHidden(0, True)
@@ -40,7 +48,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.resizeRowsToContents()   # Изменение размеров строк под длину данных
         
         # Соединяем виджеты с функциями
-        self.tableView.horizontalHeader().sectionClicked.connect(self.sort)
+        # self.tableView.horizontalHeader().sectionClicked.connect(self.sort)
         self.refreshButton.clicked.connect(self.refresh)
         self.checkBox_red.stateChanged.connect(self.red)
         self.checkBox_pink.stateChanged.connect(self.pink)
@@ -50,29 +58,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.searchBar.textChanged.connect(self.search)
 
     def sort(self, logicalIndex):
-        if logicalIndex == 1:
-            sort_filter = tbl.rowid.asc()
-        if logicalIndex == 2:
-            sort_filter = tbl.date_start.asc()
-        if logicalIndex == 3:
-            sort_filter = tbl.date_end.asc()
-        if logicalIndex == 4:
-            sort_filter = tbl.name.asc()
-        if logicalIndex == 5:
-            sort_filter = tbl.docs.asc()
-        if logicalIndex == 6:
-            sort_filter = tbl.scheme.asc()
-        if logicalIndex == 7:
-            sort_filter = tbl.lab.asc()
-        if logicalIndex == 8:
-            sort_filter = tbl.certification.asc()
-        if logicalIndex == 9:
-            sort_filter = tbl.applicant.asc()
-        if logicalIndex == 10:
-            sort_filter = tbl.requisites.asc()
-        if logicalIndex == 11:
-            sort_filter = tbl.support.asc()
-        self.myquery(sort_filter)
+        self.model.sort(logicalIndex, Qt.SortOrder.AscendingOrder)
 
     def refresh(self):
         self.refreshButton.setEnabled(False)
