@@ -2,7 +2,6 @@
 # https://stackoverflow.com/questions/17697352/pyqt-implement-a-qabstracttablemodel-for-display-in-qtableview
 # https://www.pythonguis.com/tutorials/qtableview-modelviews-numpy-pandas/
 # https://doc.qt.io/qtforpython-5/overviews/model-view-programming.html?highlight=layoutabouttobechanged
-import operator
 from datetime import *
 from PyQt6.QtCore import QAbstractTableModel, Qt, QVariant, QModelIndex
 from PyQt6 import QtGui
@@ -14,8 +13,6 @@ headers = ['№','№\nсертификата', 'Дата\nвнесения\nв 
 
 # QAbstractTableModel - это абстрактный базовый класс, означающий, что он не имеет реализаций для методов. Его нельзя использовать напрямую. На его основе необходимо создавать подкласс.
 
-# self.tableView.resizeRowsToContents()
-
 class MyTableModel(QAbstractTableModel):    # создание модели данных на базе QAbstractTableModel
     ROW_BATCH_COUNT = 15    # ограничение первоначального отображения и размер пакета для последующих обновлений представления
 
@@ -26,30 +23,33 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
         self.rowsLoaded = MyTableModel.ROW_BATCH_COUNT  # инициализируется с помощью ROW_BATCH_COUNT и увеличивается, когда действия пользователя влекут за собой отображение большего количества строк в таблице.
         
     def update(self, dataIn):
+        self.layoutAboutToBeChanged.emit()
         self.datatable = dataIn
         self.layoutChanged.emit()
 
-    def row(self, index = QModelIndex()):
+    def rowCount(self, index = QModelIndex()):
         return len(self.datatable)
 
-    def rowCount(self, index = QModelIndex()):
-        if len(self.datatable) <= self.rowsLoaded:  # Если строк меньше ограничения (15 строк), то возвращаем кол-во строк
-            return len(self.datatable)
-        else:
-            return self.rowsLoaded  # если больше ограничения, то возвращаем это ограничение (15 строк)
+    # def rowCount(self, index = QModelIndex()):
+    #     if len(self.datatable) <= self.rowsLoaded:  # Если строк меньше ограничения (15 строк), то возвращаем кол-во строк
+    #         return len(self.datatable)
+    #     else:
+    #         return self.rowsLoaded  # если больше ограничения, то возвращаем это ограничение (15 строк)
 
-    def canFetchMore(self, index = QModelIndex()):    # Возвращает True, если кол-во строк после запроса больше, чем кол-во загруженных строк
-        if len(self.datatable) > self.rowsLoaded:
-            return True
-        else:
-            return False
+    # def canFetchMore(self, index = QModelIndex()):    # Возвращает True, если кол-во строк после запроса больше, чем кол-во загруженных строк
+    #     if len(self.datatable) > self.rowsLoaded:
+    #         return True
+    #     else:
+    #         return False
 
-    def fetchMore(self, index = QModelIndex()):   # Если canFetchMore вернул True
-        remainder = len(self.datatable) - self.rowsLoaded   # Вычитаем из общего кол-ва строк уже загруженные строки, получаем оставшиеся еще не прогруженные строки
-        itemsToFetch = min(remainder, MyTableModel.ROW_BATCH_COUNT) # приравнивается к ограничению строк (15 строк) или к кол-ву оставшихся строк (если они меньше ограничения (remainder < 15))
-        self.beginInsertRows(QModelIndex(), self.rowsLoaded, self.rowsLoaded + itemsToFetch - 1)    # начало загрузки строк
-        self.rowsLoaded += itemsToFetch # к уже отображенным в таблице строкам прибавляется еще 15 или меньше строк для отображения
-        self.endInsertRows()    # конец загрузки строк
+    # def fetchMore(self, index = QModelIndex()):   # Если canFetchMore вернул True
+    #     remainder = len(self.datatable) - self.rowsLoaded   # Вычитаем из общего кол-ва строк уже загруженные строки, получаем оставшиеся еще не прогруженные строки
+    #     itemsToFetch = min(remainder, MyTableModel.ROW_BATCH_COUNT) # приравнивается к ограничению строк (15 строк) или к кол-ву оставшихся строк (если они меньше ограничения (remainder < 15))
+    #     self.layoutAboutToBeChanged.emit()
+    #     self.beginInsertRows(QModelIndex(), self.rowsLoaded, self.rowsLoaded + itemsToFetch - 1)    # начало загрузки строк
+    #     self.rowsLoaded += itemsToFetch # к уже отображенным в таблице строкам прибавляется еще 15 или меньше строк для отображения
+    #     self.endInsertRows()    # конец загрузки строк
+    #     self.layoutChanged.emit()
 
     def columnCount(self, index = QModelIndex()):  # Принимает первый вложенный список и возвращает длину (только если все строки имеют одинаковую длину)
         if len(self.datatable):
@@ -91,31 +91,7 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
             return QVariant()
         return headers[section]
 
-    def sort(self, col, order):
-        self.layoutAboutToBeChanged.emit()
-        self.datatable = sorted(self.datatable, key=operator.itemgetter(col), reverse=(order != Qt.SortOrder.AscendingOrder))
-        self.layoutChanged.emit()
-
-    # def filter(self, filter, index, role = Qt.ItemDataRole.DisplayRole):
-    #     now_date = datetime.date(datetime.today())
-    #     value = self.datatable[index.row()][index.column()]
-    #     date_end = self.datatable[index.row()][3]  # колонка с датами окончания сертификата
-    #     sup = self.datatable[index.row()][11]   # колонка с датами окончания поддержки
-
-    #     if role == Qt.ItemDataRole.DisplayRole:
-    #         if len(sup) == 10: 
-    #             if filter == 1:
-    #                 if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date) and (datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date):    # Если и сертификат, и подержка не действительны
-    #                     return value  # красный
-    #             if filter == 2:
-    #                 if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
-    #                     return value  # розовый
-    #         if len(date_end) == 10:
-    #             if filter == 3:
-    #                 if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date:    # Если сертификат не действителен
-    #                     return value  # желтый
-    #             if filter == 4:
-    #                 if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
-    #                     return value  # светло-серый
-    #     else:
-    #         return QVariant()
+    # def sort(self, col, order):
+    #     self.layoutAboutToBeChanged.emit()
+    #     self.datatable = sorted(self.datatable, key=operator.itemgetter(col), reverse=(order != Qt.SortOrder.AscendingOrder))
+    #     self.layoutChanged.emit()

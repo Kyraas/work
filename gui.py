@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 # https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
 import sys
+from datetime import *
 from PyQt6.QtWidgets import QApplication, QMainWindow
-from PyQt6.QtCore import Qt, QSortFilterProxyModel
+from PyQt6 import QtCore
+from PyQt6.QtCore import Qt, QSortFilterProxyModel, QModelIndex
+from PagedSFPModel import Filter
 from SFPModel import MySortFilterProxyModel
+# from tableview_test import Ui_MainWindow
 from tableview import Ui_MainWindow
-# from AbstractModel import MyTableModel
-from TestAbstractModel import TestTableModel
+from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
@@ -19,24 +22,26 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setupUi(self)  # Это нужно для инициализации нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
         self.status = self.statusBar()
-        self.status.showMessage('Установлено соединение с SQL.')
+        self.status.showMessage('Готово.')
 
         # Модель
-        # self.model = MyTableModel()
-        self.model = TestTableModel()
+        self.model = MyTableModel()
 
-        # self.proxy = QSortFilterProxyModel(self)
+        # self.proxy = QSortFilterProxyModel()
         self.proxy = MySortFilterProxyModel()
         self.proxy.setSourceModel(self.model)
-        # self.proxy.setDynamicSortFilter(True)
+        self.proxy.setDynamicSortFilter(True)
+        self.proxy.setFilterKeyColumn(-1)
 
         # Представление
         self.tableView.setModel(self.proxy)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
-        # self.tableView.setModel(self.model)
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.setColumnHidden(0, True)
+        self.tableView.horizontalHeader().resizeSection(1, 80)
+        self.tableView.horizontalHeader().resizeSection(2, 70)
+        self.tableView.horizontalHeader().resizeSection(3, 80)
         self.tableView.horizontalHeader().resizeSection(4, 300)
         self.tableView.horizontalHeader().resizeSection(5, 200)
         self.tableView.horizontalHeader().resizeSection(6, 150)
@@ -45,10 +50,9 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.horizontalHeader().resizeSection(9, 300)
         self.tableView.horizontalHeader().resizeSection(10, 300)
         self.tableView.horizontalHeader().resizeSection(11, 103)
-        self.tableView.resizeRowsToContents()   # Изменение размеров строк под длину данных
+        self.tableView.resizeRowsToContents()   # Изменение размеров строк под длину данных. Замедляет запуск приложения при выводе всех строк за раз!
         
         # Соединяем виджеты с функциями
-        # self.tableView.horizontalHeader().sectionClicked.connect(self.sort)
         self.refreshButton.clicked.connect(self.refresh)
         self.checkBox_red.stateChanged.connect(self.red)
         self.checkBox_pink.stateChanged.connect(self.pink)
@@ -56,9 +60,14 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_gray.stateChanged.connect(self.gray)
         self.checkBox_white.stateChanged.connect(self.white)
         self.searchBar.textChanged.connect(self.search)
+        self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения меняем размер строк под их содержимое
 
-    def sort(self, logicalIndex):
-        self.model.sort(logicalIndex, Qt.SortOrder.AscendingOrder)
+    def search(self, text):
+        self.proxy.layoutAboutToBeChanged.emit()
+        self.proxy.setFilterRegularExpression(text)
+        if text == '':
+            self.proxy.sort(-1, QtCore.Qt.SortOrder.AscendingOrder) # при пустой строке поиска возвращаем строки к исходному виду
+        self.proxy.layoutChanged.emit()
 
     def refresh(self):
         self.refreshButton.setEnabled(False)
@@ -70,7 +79,7 @@ class Table(QMainWindow, Ui_MainWindow):
             self.status.repaint()
             text = update_table(data)
             results = conn.execute(db.select([tbl])).fetchall()
-            self.model.update(results )
+            self.model.update(results)
             self.status.showMessage(text)
             self.refreshButton.setEnabled(True)
         else:
@@ -108,29 +117,13 @@ class Table(QMainWindow, Ui_MainWindow):
     def white(self):
         white_filter = (tbl.support > func.current_date()) & (tbl.date_end > func.current_date())
         if self.checkBox_white.isChecked():
-            self.myquery(db.null, white_filter)
+            self.myquery(white_filter)
         else:
             self.myquery()
 
-        
-    def search(self, text):
-        search_filter = tbl.name.like('%{}%'.format(text)) | tbl.docs.like('%{}%'.format(text)) | tbl.scheme.like('%{}%'.format(text)) | tbl.lab.like('%{}%'.format(text)) | tbl.certification.like('%{}%'.format(text)) | tbl.applicant.like('%{}%'.format(text)) | tbl.requisites.like('%{}%'.format(text)) | tbl.id.like('%{}%'.format(text)) | tbl.date_start.like('%{}%'.format(text)) | tbl.date_end.like('%{}%'.format(text)) | tbl.support.like('%{}%'.format(text))
-
-        if self.checkBox_white.isChecked():
-            search_filter = search_filter & ((tbl.support > func.current_date()) & (tbl.date_end > func.current_date()))
-        # if self.checkBox2.isChecked():
-            # search_filter = search_filter & 
-            # ...
-        self.myquery(db.null, search_filter)
-
-    def myquery(self, order_filter = tbl.rowid.asc(), *args):
-        if order_filter == db.null:
-            instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
-        else:
-            instanse = conn.execute(db.select([tbl]).filter(*args).order_by(order_filter)).fetchall()
+    def myquery(self, *args):
+        instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
         self.model.update(instanse)
-        self.tableView.resizeRowsToContents()
-
 
     def closeEvent(self, event):    # если приложение закрывают
         if conn:
