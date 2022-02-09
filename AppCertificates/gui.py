@@ -103,7 +103,7 @@ class Table(QMainWindow, Ui_MainWindow):
             results = conn.execute(db.select([tbl])).fetchall()
             self.model.update(results)
             n = self.proxy.rowCount()
-            self.status.showMessage(f'Готово. Всего сертификатов: {n}.')
+            self.status.showMessage(f'{text} Всего сертификатов: {n}.')
             self.refreshButton.setEnabled(True)
         else:
             self.status.showMessage('Нет соединения с сайтом ФСТЭК России.')
