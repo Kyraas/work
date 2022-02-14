@@ -14,6 +14,7 @@ import sqlalchemy as db
 from sqlalchemy.sql import func
 from siteparser import parse, update_table
 from six_months import half_year
+from last_update import get_update_date
 
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -30,8 +31,11 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.setSourceModel(self.model)
         self.proxy.setDynamicSortFilter(False)
         self.proxy.setFilterKeyColumn(-1)   # Поиск по всей таблице (все колонки)
+        self.proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
         n = self.proxy.rowCount()
         self.status.showMessage(f'Всего сертификатов: {n}.')
+        self.status.setStyleSheet("background-color : #D8D8D8")
+        self.last_update_date.setText(get_update_date())
 
         # Представление
         self.tableView.setModel(self.proxy)
@@ -75,36 +79,43 @@ class Table(QMainWindow, Ui_MainWindow):
 
     # Методы класса
     def search(self):
+        self.status.setStyleSheet("background-color : yellow")
         self.status.showMessage('Поиск...')
         self.status.repaint()
         self.proxy.layoutAboutToBeChanged.emit()
         self.proxy.setFilterRegularExpression(self.searchBar.text())
         if self.searchBar.text() == '':
+            self.status.setStyleSheet("background-color : yellow")
             self.status.showMessage('Загрузка...')
             self.status.repaint()
             self.proxy.sort(-1, QtCore.Qt.SortOrder.AscendingOrder) # при пустой строке поиска возвращаем строки к исходному виду
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
+            self.status.setStyleSheet("background-color : #D8D8D8")
             self.status.showMessage(f'Сертификатов: {n}.')
         else:
+            self.status.setStyleSheet("background-color : #D8D8D8")
             self.status.showMessage('По данному запросу не найдено.')
         self.status.repaint()
 
     def refresh(self):  # Обновление БД
         self.refreshButton.setEnabled(False)
+        self.status.setStyleSheet("background-color : pink")
         self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
         data = parse()  # получаем результат функции parse
         if data != False:
             self.status.showMessage('Обновляем базу данных...')
             self.status.repaint()
+            self.status.setStyleSheet("background-color : #ADFF94")
             text = update_table(data)
             results = conn.execute(db.select([tbl])).fetchall()
             self.model.update(results)
             n = self.proxy.rowCount()
             self.status.showMessage(f'{text} Всего сертификатов: {n}.')
             self.refreshButton.setEnabled(True)
+            self.last_update_date.setText(get_update_date())
         else:
             self.status.showMessage('Нет соединения с сайтом ФСТЭК России.')
             self.status.repaint()
@@ -183,6 +194,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.myquery()
 
     def myquery(self, *args):
+        self.status.setStyleSheet("background-color : yellow")
         self.status.showMessage('Загрузка...')
         self.status.repaint()
         instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
@@ -190,8 +202,10 @@ class Table(QMainWindow, Ui_MainWindow):
         n = self.proxy.rowCount()
         if n != 0:
             self.status.showMessage(f'Сертификатов: {n}.')
+            self.status.setStyleSheet("background-color : #D8D8D8")
         else:
             self.status.showMessage('По данному запросу не найдено.')
+            self.status.setStyleSheet("background-color : #D8D8D8")
         self.status.repaint()
 
     def closeEvent(self, event):    # если приложение закрывают

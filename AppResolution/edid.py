@@ -1,13 +1,23 @@
 import pyedid
 from winreg import *
-import ctypes
+# import ctypes
 import win32api
 
+# def get_cur_resolution():
+#     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Игнорирует изменение масштаба, позволяя корректно выдавать текущее разрешение экрана (применимо для Windows 8.1 и выше)
+#     user32 = ctypes.windll.user32
+#     screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+#     return screensize
+
 def get_cur_resolution():
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Игнорирует изменение масштаба, позволяя корректно выдавать текущее разрешение экрана (применимо для Windows 8.1 и выше)
-    user32 = ctypes.windll.user32
-    screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-    return screensize
+    res = ()
+    device = win32api.EnumDisplayDevices()
+    settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
+    for attr in ['PelsWidth', 'PelsHeight', 'DisplayFrequency']:
+        num = getattr(settings, attr)
+        t = (num,)
+        res += t
+    return res
 
 def get_resolutions():
     aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
@@ -22,27 +32,25 @@ def get_resolutions():
     CloseKey(EdidKey)
     return edid.resolutions
 
-def set_resolution(width=None, height=None, depth=32):
-    if width and height:
-        if not depth:
-            depth = 32
+def set_resolution(width=None, height=None, frequency=None):
+    try:
         mode = win32api.EnumDisplaySettings()
         mode.PelsWidth = width
         mode.PelsHeight = height
-        mode.BitsPerPel = depth
+        mode.DisplayFrequency = frequency
+        print(mode.PelsWidth, mode.PelsHeight, mode.DisplayFrequency)
         win32api.ChangeDisplaySettings(mode, 0)
-        mes = "Разрешение применено"
-        print("Разрешение применено")
-    else:
+        mes = "Разрешение применено."
+        print("Разрешение применено.")
+    except:
         win32api.ChangeDisplaySettings(None, 0)
-        mes = "Не удалось применить"
-        print("Не удалось применить")
-    return mes
+        mes = "Не удалось применить."
+        print("Не удалось применить.")
+    finally:
+        return mes
 
 def set_default():
-    user32 = ctypes.windll.user32
-    user32.ChangeDisplaySettingsW(None, 0)
-    print("Выставлено по умолчанию")
-    mes = "Выставлено по умолчанию"
+    win32api.ChangeDisplaySettings(None, 0)
+    print("Выставлено по умолчанию.")
+    mes = "Выставлено по умолчанию."
     return mes
-    

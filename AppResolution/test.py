@@ -15,17 +15,12 @@ def cur_resolution():
 
 aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
 
-MonitorKey = OpenKey(aReg, r"SYSTEM\CurrentControlSet\Services\monitor\Enum")   # узнаем какой монитор подключен к компьютеру на данный момент
-path = QueryValueEx(MonitorKey, "0")    # получаем путь к нужному монитору
-CloseKey(MonitorKey)    # закрываем текущую открытую ветку
-
-EdidKey = OpenKey(aReg, rf"SYSTEM\CurrentControlSet\Enum\{path[0]}\Device Parameters")  # открываем нужную ветку, используя полученные данные
-hex = QueryValueEx(EdidKey, "EDID") # получаем EDID
+Key = OpenKey(aReg, r"SYSTEM\ControlSet001\Control\GraphicsDrivers\InternalMonEdid\00040f04")   # узнаем какой монитор подключен к компьютеру на данный момент
+hex = QueryValueEx(Key, "EDID") # получаем EDID
 edid = pyedid.parse_edid(hex[0])    # конвертируем х16 EDID в читаемый вид
-# print(edid)
-print(edid.resolutions)
-CloseKey(EdidKey)
-
+print(edid)
+# print(edid.resolutions)
+CloseKey(Key)    # закрываем текущую открытую ветку
 
 
 # aKey = OpenKey(aReg, r"SYSTEM\CurrentControlSet\Enum\DISPLAY")
