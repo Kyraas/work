@@ -47,13 +47,14 @@ class Table(QMainWindow, Ui_MainWindow):
         if data != False:
             max = count_rows(data)  # маскимальное кол-во строк
             self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
+            self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
             self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
-            self.progressbar.setStyleSheet("max-height: 12px")  # задаем стиль
-            self.progressbar.setHidden(False)   # пока что скрываем progressbar
+            self.progressbar.setHidden(True)   # пока что скрываем progressbar
         else:
             self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
             self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
             self.status.repaint()
+            self.refreshButton.setText("Нет соединения с\nсайтом ФСТЭК России.")
             self.refreshButton.setEnabled(False)
 
         # Представление

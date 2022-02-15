@@ -21,7 +21,7 @@ def get_html(url, params=None):
         r = requests.get(url, headers=HEADERS, params=params)
         return r
     except requests.exceptions.ConnectionError:
-        print("Ошибка соединения")
+        # print("Ошибка соединения")
         return False
         
 
