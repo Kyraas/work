@@ -71,8 +71,11 @@ def parse():
     else:
         return False
 
+def count_rows(data):
+    return(len(data))
 
 def update_table(data):
+    k = 0
     try:
         # изменяем формат даты на YYYY-MM-DD для дальнейшей обработки в SQLite
         for i in data:
@@ -82,9 +85,15 @@ def update_table(data):
             if i['support'] != '' and i['support'] != 'бессрочно' and i['date_end'] != '#Н/Д':
                 i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
             tbl.upsert(i)
-        Session.commit()   # сохраняем изменения в бд
-        success = "База данных успешно обновлена."
-        return success
+            k += 1
+            yield(k)
 
     except sqlite3.Error as error:
         print("Ошибка при работе с SQLite: ", error)
+    
+    finally:
+        Session.commit()   # сохраняем изменения в бд
+
+def commit_db():
+    success = "База данных успешно обновлена."
+    return success

@@ -4,7 +4,8 @@
 
 import sys
 from datetime import *
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup
+from tkinter.ttk import Progressbar
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar
 from PyQt6 import QtCore
 from PyQt6.QtCore import QSortFilterProxyModel
 from tableview import Ui_MainWindow
@@ -12,7 +13,7 @@ from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
-from siteparser import parse, update_table
+from siteparser import parse, update_table, count_rows, commit_db
 from six_months import half_year
 from last_update import get_update_date
 
@@ -32,10 +33,28 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.setDynamicSortFilter(False)
         self.proxy.setFilterKeyColumn(-1)   # Поиск по всей таблице (все колонки)
         self.proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
-        n = self.proxy.rowCount()
+
+        # Считаем строки при запуске программы
+        n = self.proxy.rowCount()                    
         self.status.showMessage(f'Всего сертификатов: {n}.')
-        self.status.setStyleSheet("background-color : #D8D8D8")
+        self.status.setStyleSheet("background-color : #D8D8D8") # серый
+
+        # Проверяем дату последнего изменения файла базы данных
         self.last_update_date.setText(get_update_date())
+
+        # Инициализируем progressbar
+        data = parse()  # парсим сайт
+        if data != False:
+            max = count_rows(data)  # маскимальное кол-во строк
+            self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
+            self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
+            self.progressbar.setStyleSheet("max-height: 12px")  # задаем стиль
+            self.progressbar.setHidden(False)   # пока что скрываем progressbar
+        else:
+            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
+            self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
+            self.status.repaint()
+            self.refreshButton.setEnabled(False)
 
         # Представление
         self.tableView.setModel(self.proxy)
@@ -79,20 +98,20 @@ class Table(QMainWindow, Ui_MainWindow):
 
     # Методы класса
     def search(self):
-        self.status.setStyleSheet("background-color : yellow")
+        self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
         self.status.repaint()
         self.proxy.layoutAboutToBeChanged.emit()
         self.proxy.setFilterRegularExpression(self.searchBar.text())
         if self.searchBar.text() == '':
-            self.status.setStyleSheet("background-color : yellow")
+            self.status.setStyleSheet("background-color : #FFFF89")
             self.status.showMessage('Загрузка...')
             self.status.repaint()
             self.proxy.sort(-1, QtCore.Qt.SortOrder.AscendingOrder) # при пустой строке поиска возвращаем строки к исходному виду
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
-            self.status.setStyleSheet("background-color : #D8D8D8")
+            self.status.setStyleSheet("background-color : #D8D8D8") # серый
             self.status.showMessage(f'Сертификатов: {n}.')
         else:
             self.status.setStyleSheet("background-color : #D8D8D8")
@@ -100,24 +119,36 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.repaint()
 
     def refresh(self):  # Обновление БД
-        self.refreshButton.setEnabled(False)
+        self.refreshButton.setEnabled(False)    # во время обновления базы делаем кнопку неактивной
         self.status.setStyleSheet("background-color : pink")
         self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
         data = parse()  # получаем результат функции parse
         if data != False:
-            self.status.showMessage('Обновляем базу данных...')
+
+            # Начало обновления базы
+            self.status.showMessage('Обновление базы...')
             self.status.repaint()
-            self.status.setStyleSheet("background-color : #ADFF94")
-            text = update_table(data)
+            self.progressbar.setHidden(False)   # отображаем progressbar
+            rows = update_table(data)   # получаем кол-во строк, внесенных в базу
+            for row in rows:
+                self.progressbar.setValue(row)
+            self.status.showMessage('Загрузка таблицы...')
+            self.status.repaint()
             results = conn.execute(db.select([tbl])).fetchall()
             self.model.update(results)
+
+            # Завершение обновления базы
+            self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
+            final = commit_db() # получаем сообщение об успешном обновлении
             n = self.proxy.rowCount()
-            self.status.showMessage(f'{text} Всего сертификатов: {n}.')
-            self.refreshButton.setEnabled(True)
-            self.last_update_date.setText(get_update_date())
+            self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
+            self.status.showMessage(f'{final} Всего сертификатов: {n}.')
+            self.refreshButton.setEnabled(True) # делаем кнопку снова активной
+            self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
         else:
-            self.status.showMessage('Нет соединения с сайтом ФСТЭК России.')
+            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
+            self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
             self.status.repaint()
 
     def red(self):  # Сертификат и поддержка не действительны
@@ -194,23 +225,26 @@ class Table(QMainWindow, Ui_MainWindow):
         self.myquery()
 
     def myquery(self, *args):
-        self.status.setStyleSheet("background-color : yellow")
+        self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Загрузка...')
         self.status.repaint()
         instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
         self.model.update(instanse)
         n = self.proxy.rowCount()
         if n != 0:
+            self.status.setStyleSheet("background-color : #D8D8D8")
             self.status.showMessage(f'Сертификатов: {n}.')
-            self.status.setStyleSheet("background-color : #D8D8D8")
         else:
+            self.status.setStyleSheet("background-color : #FFFFFF")
             self.status.showMessage('По данному запросу не найдено.')
-            self.status.setStyleSheet("background-color : #D8D8D8")
         self.status.repaint()
 
     def closeEvent(self, event):    # если приложение закрывают
         if conn:
             conn.close()    # закрываем соединение с БД перед закрытием
+        self.status.setStyleSheet("background-color : #FFFF89")
+        self.status.showMessage('Закрываем...')
+        self.status.repaint()
         event.accept()
 
     
