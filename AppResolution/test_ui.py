@@ -6,13 +6,12 @@ from edid import *
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.text = tk.StringVar()  # изменяемый текст
         edid = get_edid() # получаем кортежи поддерживаемых разрешений из EDID монитора
         res = edid.resolutions
-        dict_res = []
         if res != []:
             res.sort(reverse=True)  # сортируем кортежи
             dict_res = []
+            self.text = tk.StringVar()  # изменяемый текст
             for i in list(res): # преобразуем кортежи в список
                 s = ""
                 s += str(i[0]) + ' на ' +  str(i[1]) + ', ' + str(i[2]) + ' Гц'

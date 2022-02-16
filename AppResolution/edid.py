@@ -19,9 +19,8 @@ def get_cur_resolution():
         res += t
     return res
 
-def get_resolutions():
+def get_edid():
     aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
-
     MonitorKey = OpenKey(aReg, r"SYSTEM\CurrentControlSet\Services\monitor\Enum")   # узнаем какой монитор подключен к компьютеру на данный момент
     path = QueryValueEx(MonitorKey, "0")    # получаем путь к нужному монитору
     CloseKey(MonitorKey)    # закрываем текущую открытую ветку
@@ -30,7 +29,8 @@ def get_resolutions():
     hex = QueryValueEx(EdidKey, "EDID") # получаем EDID
     edid = pyedid.parse_edid(hex[0])    # конвертируем х16 EDID в читаемый вид
     CloseKey(EdidKey)
-    return edid.resolutions
+
+    return edid
 
 def set_resolution(width=None, height=None, frequency=None):
     try:
@@ -39,9 +39,13 @@ def set_resolution(width=None, height=None, frequency=None):
         mode.PelsHeight = height
         mode.DisplayFrequency = frequency
         print(mode.PelsWidth, mode.PelsHeight, mode.DisplayFrequency)
-        win32api.ChangeDisplaySettings(mode, 0)
-        mes = "Разрешение применено."
-        print("Разрешение применено.")
+        status = win32api.ChangeDisplaySettings(mode, 0)    # 0 - Графический режим для текущего экрана будет изменяться динамически.
+        if status == 0:
+            mes = "Разрешение применено."
+            print("Разрешение применено.")
+        else:
+            mes = "Не удалось применить."
+            print("Не удалось применить.")
     except:
         win32api.ChangeDisplaySettings(None, 0)
         mes = "Не удалось применить."
