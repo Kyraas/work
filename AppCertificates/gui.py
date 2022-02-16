@@ -3,11 +3,9 @@
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
-from datetime import *
-from tkinter.ttk import Progressbar
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar
 from PyQt6 import QtCore
 from PyQt6.QtCore import QSortFilterProxyModel
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
@@ -95,6 +93,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
         self.searchButton.clicked.connect(self.search)
+        self.searchBar.returnPressed.connect(self.search)
         self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
 
     # Методы класса
