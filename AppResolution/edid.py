@@ -1,13 +1,11 @@
 import pyedid
 from winreg import *
-# import ctypes
 import win32api
+import win32con
+import pywintypes
 
-# def get_cur_resolution():
-#     ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Игнорирует изменение масштаба, позволяя корректно выдавать текущее разрешение экрана (применимо для Windows 8.1 и выше)
-#     user32 = ctypes.windll.user32
-#     screensize = user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-#     return screensize
+def myFunc(e):
+    return e[2]
 
 def get_cur_resolution():
     res = ()
@@ -19,27 +17,46 @@ def get_cur_resolution():
         res += t
     return res
 
-def get_edid():
-    aReg = ConnectRegistry(None, HKEY_LOCAL_MACHINE)
-    MonitorKey = OpenKey(aReg, r"SYSTEM\CurrentControlSet\Services\monitor\Enum")   # узнаем какой монитор подключен к компьютеру на данный момент
-    path = QueryValueEx(MonitorKey, "0")    # получаем путь к нужному монитору
-    CloseKey(MonitorKey)    # закрываем текущую открытую ветку
+def get_resolutions():
+    i=0
+    res=set()   # сохраняет только неповторяющиеся значения
+    try:
+        while True:
+            ds=win32api.EnumDisplaySettings(None, i)
+            res.add(f"{ds.PelsWidth} {ds.PelsHeight} {ds.DisplayFrequency}")
+            i+=1
+    except:
+        pass
+    return(convert_set(res))
 
-    EdidKey = OpenKey(aReg, rf"SYSTEM\CurrentControlSet\Enum\{path[0]}\Device Parameters")  # открываем нужную ветку, используя полученные данные
-    hex = QueryValueEx(EdidKey, "EDID") # получаем EDID
-    edid = pyedid.parse_edid(hex[0])    # конвертируем х16 EDID в читаемый вид
-    CloseKey(EdidKey)
-
-    return edid
+def convert_set(res):
+    one_res = ()
+    dict_res = list(res)
+    new_dict = []
+    for i in range(len(dict_res)):
+        j = dict_res[i].split()
+        one_res = (int(j[0]), int(j[1]), int(j[2]))
+        new_dict.append(one_res)
+    new_dict.sort()
+    return(new_dict)
 
 def set_resolution(width=None, height=None, frequency=None):
     try:
-        mode = win32api.EnumDisplaySettings()
-        mode.PelsWidth = width
-        mode.PelsHeight = height
-        mode.DisplayFrequency = frequency
-        print(mode.PelsWidth, mode.PelsHeight, mode.DisplayFrequency)
-        status = win32api.ChangeDisplaySettings(mode, 0)    # 0 - Графический режим для текущего экрана будет изменяться динамически.
+        devmode = pywintypes.DEVMODEType()
+        # mode = win32api.EnumDisplaySettings()
+        devmode.PelsWidth = width
+        devmode.PelsHeight = height
+        devmode.DisplayFrequency = frequency
+
+        devmode.Fields = win32con.DM_PELSWIDTH | win32con.DM_PELSHEIGHT | win32con.DM_DISPLAYFREQUENCY
+
+        print(devmode.PelsWidth, devmode.PelsHeight, devmode.DisplayFrequency)
+        # status = win32api.ChangeDisplaySettings(devmode, 0)    # 0 - Графический режим для текущего экрана будет изменяться динамически.
+        device = win32api.EnumDisplayDevices()
+        # print(device.DeviceName)
+        status = win32api.ChangeDisplaySettingsEx(device.DeviceName, devmode, 0)    # 0 - Графический режим для текущего экрана будет изменяться динамически.
+
+        print(status)
         if status == 0:
             mes = "Разрешение применено."
             print("Разрешение применено.")
@@ -58,3 +75,5 @@ def set_default():
     print("Выставлено по умолчанию.")
     mes = "Выставлено по умолчанию."
     return mes
+
+# print(set_resolution(1920, 1080, 30))

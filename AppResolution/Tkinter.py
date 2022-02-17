@@ -7,19 +7,9 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.text = tk.StringVar()  # изменяемый текст
-        edid = get_edid() # получаем кортежи поддерживаемых разрешений из EDID монитора
-        res = edid.resolutions
-        dict_res = []
-        if res != []:
-            res.sort(reverse=True)  # сортируем кортежи
-            dict_res = []
-            for i in list(res): # преобразуем кортежи в список
-                s = ""
-                s += str(i[0]) + ' на ' +  str(i[1]) + ', ' + str(i[2]) + ' Гц'
-                dict_res.append(s)
-        else:
-            messagebox.showerror("Ошибка", f"Отсутствуют разрешения в EDID.\n EDID: {edid}")
 
+        dict_res = get_resolutions()
+        print(dict_res)
         cur_res = get_cur_resolution()  # получаем текущее разрешение и частоту
         self.text.set(f"Текущее разрешение: {cur_res[0]} на {cur_res[1]}, {float(cur_res[2])} Гц")
 
