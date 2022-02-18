@@ -1,64 +1,84 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-from edid import *
-
-class App(tk.Tk):
-    def __init__(self):
-        super().__init__()
-        edid = get_edid() # получаем кортежи поддерживаемых разрешений из EDID монитора
-        res = edid.resolutions
-        if res != []:
-            res.sort(reverse=True)  # сортируем кортежи
-            dict_res = []
-            self.text = tk.StringVar()  # изменяемый текст
-            for i in list(res): # преобразуем кортежи в список
-                s = ""
-                s += str(i[0]) + ' на ' +  str(i[1]) + ', ' + str(i[2]) + ' Гц'
-                dict_res.append(s)
-        else:
-            messagebox.showerror("Ошибка", f"Отсутствуют разрешения в EDID.\n EDID: {edid}")
-
-        cur_res = get_cur_resolution()  # получаем текущее разрешение и частоту
-        self.text.set(f"Текущее разрешение: {cur_res[0]} на {cur_res[1]}, {float(cur_res[2])} Гц")
-
-        self.lblRes = tk.Label(self, textvariable = self.text)  # строка с текущим разрешением
-        self.lblRes.grid(column=0, row=0)
-
-        self.lbl = tk.Label(self, text = "Разрешения монитора: ")
-        self.lbl.grid(column=0, row=1)
-
-        self.comboRes = ttk.Combobox(self, values=dict_res, state="readonly")
-        # res = get_resolutions()
-        # for i in res:
-        #     if res_freq in res:
-        #         print(res_freq)
-        # self.comboRes.current(0)
-        self.comboRes.grid(column=1, row=1)
-
-        self.btn = tk.Button(self, text="Применить", command=self.cmbx_event)
-        self.btn.grid(column=2, row=1)
-
-        self.btn_default = tk.Button(self, text="Сброс", command=self.reset)
-        self.btn_default.grid(column=3, row=1)
-
-    def reset(self):    # сброс к разрешению по умолчанию
-        mes = set_default()
-        cur_res = get_cur_resolution()
-        self.text.set(f"{mes}\nТекущее разрешение: {cur_res[0]} на {cur_res[1]}, {float(cur_res[2])} Гц")
-
-    def cmbx_event(self):   # изменение разрешения
-        current_value = self.comboRes.get() # получаем выбранное значение из списка
-        val = current_value.split() # разделяем строку на части
-        width = val[0]
-        height = val[2]
-        height = height[:-1]    # убираем запятую в конце числа
-        hz = val[3]
-        mes = set_resolution(int(width), int(height), float(hz))
-        cur_res = get_cur_resolution()
-        self.text.set(f"{mes}\nТекущее разрешение: {cur_res[0]} на {cur_res[1]}, {float(cur_res[2])} Гц")
-
-app = App()   # Создаем новое окно
-app.geometry('600x300')
-app.title("Разрешение экрана")
-app.mainloop()   # Запускаем бесконечный цикл окна. Без этой строки окно не отобразится
+ 
+APP_TITLE = "Count Down Box"
+APP_XPOS = 100
+APP_YPOS = 100
+APP_WIDTH = 350
+APP_HEIGHT = 200
+ 
+ 
+class CountDownMessageBox(tk.Toplevel):
+    TEXT_FONT = ('Helevtica', 12, 'bold')
+    TEXT = "This process may take up to 2 min. Please try after 2min..!"
+    TIMER_FONT = ('Helevtica', 16, 'bold')
+    TIMER_COUNT = 10 # Seconds
+     
+    def __init__(self, app, msg_text=TEXT):
+        self.app = app
+        self.msg_text = msg_text
+         
+        tk.Toplevel.__init__(self, app.main_win)
+         
+        self.build()
+         
+    def build(self):
+        main_frame = tk.Frame(self)
+        main_frame.pack(expand=True, padx=20, pady=20)
+         
+        message_var = tk.StringVar(self.app.main_win, self.msg_text)
+        tk.Label(main_frame, bitmap='hourglass', padx=10, font=self.TEXT_FONT,
+            compound='left', textvariable=message_var, wraplength=200,
+            fg='gray40').grid(row=0, column=0)
+         
+        self.timer_var = tk.StringVar()
+        tk.Label(main_frame, textvariable=self.timer_var, font=self.TIMER_FONT,
+            fg='blue').grid(row=1, column=0, padx=20, pady=20)
+         
+        self.count_down()
+         
+    def count_down(self, time_count=TIMER_COUNT):
+        self.timer_var.set("{} Seconds".format(time_count))
+        if time_count == 0:
+            self.destroy()
+            self.app.count_down_callback()
+        time_count -= 1
+        self.after(1000, self.count_down, time_count)
+         
+                     
+class Application:
+ 
+    def __init__(self, main_win):
+        self.main_win = main_win
+         
+        self.count_down = False
+        self.build()
+         
+    def build(self):
+        self.main_frame = tk.Frame(self.main_win)
+        self.main_frame.pack(fill='both', expand=True)
+ 
+        wifiOnButton = tk.Button(self.main_win, text="WiFi-ON",
+            command=self.wifiOnscript, height=1, width=22)
+        wifiOnButton.pack(expand=True, padx=40, pady=10)
+ 
+    def wifiOnscript(self):
+        if not self.count_down:
+            CountDownMessageBox(self)
+ 
+    def count_down_callback(self):
+        print("Count down finished!")
+         
+         
+def main():
+    main_win = tk.Tk()
+    main_win.title(APP_TITLE)
+    main_win.geometry("+{}+{}".format(APP_XPOS, APP_YPOS))
+    #main_win.geometry("{}x{}".format(APP_WIDTH, APP_HEIGHT))
+ 
+    app = Application(main_win)
+     
+    main_win.mainloop()
+  
+  
+if __name__ == '__main__':
+    main()
