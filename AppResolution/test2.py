@@ -1,31 +1,66 @@
-import ctypes
-import struct
-import sys
+import win32api
 
-def set_res(width, height, frequency):
-    print(width, height, frequency)
-    # DM_BITSPERPEL = 0x00040000
-    DM_PELSWIDTH = 0x00080000
-    DM_PELSHEIGHT = 0x00100000
-    DM_DISPLAYFREQUENCY = 0x00400000
-    CDS_UPDATEREGISTRY = 0x00000001
-    SIZEOF_DEVMODE = 148
+def get_device():
+    i = 0
+    try:
+        while True:
+            device = win32api.EnumDisplayDevices(None, i)
+            res = ()
+            settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
+            for attr in ['PelsWidth', 'PelsHeight', 'DisplayFrequency', 'DisplayFlags']:
+                num = getattr(settings, attr)
+                t = (num,)
+                res += t
+            if res != None:
+                get_resolutions(device)
+                # print("Size:", device.Size)
+                print("DeviceName:", device.DeviceName, res)
+                print("DeviceString:", device.DeviceString)
+                print("StateFlags:", device.StateFlags)
+                print("DeviceID:", device.DeviceID)
+                print("DeviceKey:", device.DeviceKey, "\n\n")
+            i += 1
+    except:
+        pass
 
-    user32 = ctypes.WinDLL('user32.dll')
-    DevModeData = struct.calcsize("32BHH") * bytes('\x00','utf')
-    DevModeData += struct.pack("H", SIZEOF_DEVMODE)
-    DevModeData += struct.calcsize("H") * bytes('\x00','utf')
-    dwFields = (width and DM_PELSWIDTH or 0) | (height and DM_PELSHEIGHT or 0) | (frequency and DM_DISPLAYFREQUENCY or 0)
-    print(dwFields)
-    DevModeData += struct.pack("L", dwFields)
-    DevModeData += struct.calcsize("l9h32BHL") * bytes('\x00','utf')
-    DevModeData += struct.pack("LLL", frequency or 0, width or 0, height or 0)
-    DevModeData += struct.calcsize("8L") * bytes('\x00','utf')
-    result = user32.ChangeDisplaySettingsA(DevModeData, CDS_UPDATEREGISTRY)
-    return result == 0  # success if zero, some failure otherwise
+def get_resolutions(device):
+    i = 0
+    res = set()   # сохраняет только неповторяющиеся значения
+    try:
+        while True:
+            ds = win32api.EnumDisplaySettings(device.DeviceName, i)
+            res.add(f"{ds.PelsWidth} {ds.PelsHeight} {ds.DisplayFrequency} {ds.DisplayFlags}")
+            i+=1
+    except:
+        pass
+    return(convert_set(res))
 
-result = set_res(1920, 1080, 60.0)
-# result = set_res(1920, 1080, 59)
-# result = set_res(1024, 768, 75)
-# result = set_res(1680, 1050, 60)
-print(result)
+def convert_set(res):
+    one_res = ()
+    dict_res = list(res)
+    new_dict = []
+    for i in range(len(dict_res)):
+        j = dict_res[i].split()
+        one_res = (int(j[0]), int(j[1]), int(j[2]), int(j[3]))
+        new_dict.append(one_res)
+    new_dict.sort()
+    print(new_dict)
+    return(new_dict)
+
+# get_device()
+
+# monitor = win32api.EnumDisplayMonitors()
+# for i in range(len(monitor)):
+#     s = monitor[i]  # (hMonitor, hdcMonitor, PyRECT)
+#     print(s)
+#     k = s[0]
+#     info = win32api.GetMonitorInfo(k)
+#     print(info, "\n\n")
+
+device = win32api.EnumDisplayDevices(None, 0)
+print(device.DeviceName)
+# settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
+settings = win32api.EnumDisplaySettings(None, -1)
+print(settings.PelsWidth, settings.PelsHeight, settings.DisplayFrequency)
+
+# k = input("Нажмите любую кнопку") \\.\DISPLAY2

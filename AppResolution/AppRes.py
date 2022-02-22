@@ -40,33 +40,47 @@ class CountDownMessageBox(tk.Toplevel): # Toplevel - верхний слой
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.text = tk.StringVar()  # изменяемый текст
-        self.message = tk.StringVar()
+        self.text = tk.StringVar()  # текущее разрешение экрана
+        self.message = tk.StringVar()   # сообщение
 
-        dict_res = get_resolutions()
-        new_dict = self.convert_list(dict_res)
-        cur_res = get_cur_resolution()  # получаем текущее разрешение и частоту
-        self.change_text()
+        self.dict_device = get_device() # словарь вида "DeviceName: device"
+        list_device = []    # лист DeviceName
+        for i in self.dict_device:
+            list_device.append(i)
+
+        self.lblMon = tk.Label(self, text = "Монитор: ")
+        self.lblMon.grid(column=0, row=0)
+
+        self.comboMon = ttk.Combobox(self, values=list_device, state="readonly")    # список DeviceName
+        self.comboMon.bind("<<ComboboxSelected>>", self.choice_dev)
+        self.comboMon.current(0)    # по умолчанию берет первый (основной)
+        self.choice_dev("<<ComboboxSelected>>")
+        self.comboMon.grid(column=1, row=0)
 
         self.lblMes = tk.Label(self, textvariable = self.message)  # строка состояния
         self.lblRes = tk.Label(self, textvariable = self.text)  # строка с текущим разрешением
-        self.lblMes.grid(column=0, row=0, columnspan=2)
+        self.lblMes.grid(column=0, row=3, columnspan=2)
         self.lblRes.grid(column=0, row=1, columnspan=2)
 
         self.lbl = tk.Label(self, text = "Разрешения монитора: ")
         self.lbl.grid(column=0, row=2)
-
-        self.comboRes = ttk.Combobox(self, values=new_dict, state="readonly", width=32)
-        for i in range(len(dict_res)):
-            if cur_res == dict_res[i]:
-                self.comboRes.current(i)
-        self.comboRes.grid(column=1, row=2)
 
         self.btn = tk.Button(self, text="Применить", command=self.cmbx_event)
         self.btn.grid(column=2, row=2)
 
         self.btn_default = tk.Button(self, text="Сброс", command=self.reset)
         self.btn_default.grid(column=3, row=2)
+
+    def choice_dev(self, event):
+        cur_mon = self.comboMon.get()
+        cur_res = get_cur_resolution(self.dict_device[cur_mon])
+        dict_res = get_resolutions(self.dict_device[cur_mon])
+        new_dict = self.convert_list(dict_res)
+        self.comboRes = ttk.Combobox(self, values=new_dict, state="readonly", width=32)
+        for i in range(len(dict_res)):
+            if cur_res == dict_res[i]:
+                self.comboRes.current(i)
+        self.comboRes.grid(column=1, row=2)
 
     def convert_list(self, dict_res):
         new_dict = []
@@ -80,19 +94,21 @@ class App(tk.Tk):
         return new_dict
 
     def reset(self):    # сброс к разрешению по умолчанию
+        cur_mon = self.comboMon.get()
         mes = set_default()
         self.message.set(mes)
-        self.change_text()
+        self.change_text(self.dict_device[cur_mon])
 
     def cmbx_event(self):   # изменение разрешения
+        cur_mon = self.comboMon.get()    # получаем выбранный DeviceName из списка
         current_value = self.comboRes.get() # получаем выбранное значение из списка
-        cur_res = get_cur_resolution()  # получаем текущее разрешение и частоту
+        cur_res = get_cur_resolution(self.dict_device[cur_mon])  # получаем текущее разрешение и частоту
         val = current_value.split() # разделяем строку на части
         width = val[0]
         height = val[2]
         height = height[:-1]    # убираем запятую в конце числа
         hz = val[3]
-        if len(val) == 5:
+        if len(val) > 5:
             flag = 2
         else:
             flag = 0
@@ -101,14 +117,14 @@ class App(tk.Tk):
         if check == cur_res:
             self.message.set("Данное разрешение уже установлено.")
         else:
-            mes = set_resolution(int(width), int(height), int(hz), int(flag))
+            mes = set_resolution(self.dict_device[cur_mon], int(width), int(height), int(hz), int(flag))
             self.message.set(mes)
             if mes == "Разрешение применено.":
-                self.change_text()
+                self.change_text(self.dict_device[cur_mon])
                 CountDownMessageBox(self)
     
-    def change_text(self):
-        cur_res = get_cur_resolution()  # получаем текущее разрешение и частоту
+    def change_text(self, device):
+        cur_res = get_cur_resolution(device)  # получаем текущее разрешение и частоту
         self.text.set(f"Текущее разрешение: {cur_res[0]} на {cur_res[1]}, {int(cur_res[2])} Гц")
 
 

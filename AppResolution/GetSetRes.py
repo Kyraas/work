@@ -1,11 +1,35 @@
 from winreg import *
 import win32api
 import win32con
-import pywintypes
 
-def get_cur_resolution():
+def get_device():
+    monitors = {}
+    i = 0
+    try:
+        while True:
+            device = win32api.EnumDisplayDevices(None, i)
+            res = ()
+            settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
+            for attr in ['PelsWidth', 'PelsHeight', 'DisplayFrequency', 'DisplayFlags']:
+                num = getattr(settings, attr)
+                t = (num,)
+                res += t
+            if res != None:
+                # print("Size:", device.Size)
+                # print("DeviceName:", device.DeviceName, res)
+                # print("DeviceString:", device.DeviceString)
+                # print("StateFlags:", device.StateFlags)
+                # print("DeviceID:", device.DeviceID)
+                # print("DeviceKey:", device.DeviceKey)
+                monitors[device.DeviceName] = device
+            i += 1
+    except:
+        pass
+    finally:
+        return monitors
+
+def get_cur_resolution(device):
     res = ()
-    device = win32api.EnumDisplayDevices()
     settings = win32api.EnumDisplaySettings(device.DeviceName, -1)
     for attr in ['PelsWidth', 'PelsHeight', 'DisplayFrequency', 'DisplayFlags']:
         num = getattr(settings, attr)
@@ -13,12 +37,12 @@ def get_cur_resolution():
         res += t
     return res
 
-def get_resolutions():
+def get_resolutions(device):
     i = 0
     res = set()   # сохраняет только неповторяющиеся значения
     try:
         while True:
-            ds = win32api.EnumDisplaySettings(None, i)
+            ds = win32api.EnumDisplaySettings(device.DeviceName, i)
             res.add(f"{ds.PelsWidth} {ds.PelsHeight} {ds.DisplayFrequency} {ds.DisplayFlags}")
             i+=1
     except:
@@ -34,22 +58,19 @@ def convert_set(res):
         one_res = (int(j[0]), int(j[1]), int(j[2]), int(j[3]))
         new_dict.append(one_res)
     new_dict.sort()
+    # print(new_dict)
     return(new_dict)
 
-def set_resolution(width=None, height=None, frequency=None, flag=0):
+def set_resolution(device, width=None, height=None, frequency=None, flag=0):
     try:
-        # mode = pywintypes.modeType()
-        device = win32api.EnumDisplayDevices()
         mode = win32api.EnumDisplaySettings(device.DeviceName)
         mode.PelsWidth = width
         mode.PelsHeight = height
         mode.DisplayFrequency = frequency
-        mode.DisplayFlag = flag
-
+        mode.DisplayFlags = flag
         mode.Fields = win32con.DM_PELSWIDTH | win32con.DM_PELSHEIGHT | win32con.DM_DISPLAYFREQUENCY | win32con.DM_DISPLAYFLAGS
 
-        print(mode.PelsWidth, mode.PelsHeight, mode.DisplayFrequency, mode.DisplayFlag)
-        device = win32api.EnumDisplayDevices()
+        print(mode.PelsWidth, mode.PelsHeight, mode.DisplayFrequency, mode.DisplayFlags)
         status = win32api.ChangeDisplaySettingsEx(device.DeviceName, mode, 0)    # 0 - Графический режим для текущего экрана будет изменяться динамически.
 
         print(status)
@@ -60,9 +81,9 @@ def set_resolution(width=None, height=None, frequency=None, flag=0):
             mes = "Не удалось применить."
             print("Не удалось применить.")
             win32api.ChangeDisplaySettings(None, 0)
-    # except Exception:
-    #     mes = "Ошибка. Не удалось применить. Выставлено по умолчанию"
-    #     print("Ошибка. Не удалось применить. Выставлено по умолчанию")
+    except Exception:
+        mes = "Ошибка. Не удалось применить. Выставлено по умолчанию"
+        print("Ошибка. Не удалось применить. Выставлено по умолчанию")
     finally:
         return mes
 
