@@ -30,7 +30,6 @@ full_hours = 0.0
 hours = ""
 date_order = ""
 
-# rows = sheet.max_row
 cols = sheet.max_column
 
 for cell in sheet['B']:
@@ -41,6 +40,7 @@ for cell in sheet['B']:
             for i in month_list:
                 if s == i.lower():
                     cur_month = i
+                    print(cur_month)
 
     if s[:2] == '17':
         name = str(cell.value)
@@ -52,6 +52,7 @@ for cell in sheet['B']:
             full_hours = float(hours)    # суммарные рабочие часы
             row_start = int(cell.row)
             print(name, hours)
+            
     elif (int(cell.row) != row_start) & (row_start != 0):   # получаем заказ-наряды под каждого человека
         hours = sheet.cell(row=cell.row, column=cols).value
         if (hours != None) & (hours != '0ч'):   # если есть рабочие часы на заказ-наряд
@@ -67,5 +68,3 @@ for cell in sheet['B']:
                 year = date_order[6:]
                 month = month_dict.get(m)
                 print(day, month, year)
-        
-print(cur_month)
