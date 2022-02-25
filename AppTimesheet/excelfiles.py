@@ -24,7 +24,7 @@ def create_new(timesheet):
     path = path[0] + '\\' + timesheet   # вставляем новое название файла в путь
     print("Новый файл создаётся по пути:", path)
     wb = excel.Workbooks.Open(fname)    # Открываем .xls-файл по указанному пути (файл не должен быть открыт)
-    print("Сохраняем файл как...")
+    print(f"Сохраняем файл как '{timesheet}' ")
     wb.SaveAs(path, FileFormat = 51)    # FileFormat = 51 is для .xlsx расширения, FileFormat = 56 is для .xls расширения
     print("Закрываем файл...")
     wb.Close()                               # Закрываем файл
