@@ -21,7 +21,6 @@ def get_days(month, year=2022):
 
     month_dict = {}
     work, pre_holiday = [], []  # рабочие и предпраздничные дни
-    # hours = 0.0
     for j in range(col, col + 6):
         for i in range(row, row + 7):
             c = calendar.cell(row = i, column = j)
