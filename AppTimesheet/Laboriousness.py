@@ -1,21 +1,8 @@
-# Учет отпусков
 # Хранение данных о сотрудниках в файле, возможность редактирования этого файла
-
 import openpyxl
 import re
-from excelfiles import *
-from pcalendar import *
-
-employees = {
-    "Бондаренко Мария Алексеевна": ["Инженер-стажер", "1"],
-    "Михайлов Даниил Сергеевич": ["Инженер", "1"],
-    "Перетягин Николай Александрович": ["Начальник отдела", "1"],
-    "Поддубский Александр Анатольевич": ["Ведущий инженер", "1"],
-    "Федорищев Иван Васильевич": ["Инженер", "1"],
-    "Дрявичев Иван Олегович": ["Инженер-стажер", "0,5"],
-    "Рыженко Сергей Викторович": ["Директор департамента", "1"],
-    "Тараканов Иван Игоревич": ["Инженер", "1"]
-}
+from excelfiles import create_new, save_file
+from vacation import get_days
 
 month_dict = {
     "01": "Январь",
@@ -33,6 +20,21 @@ month_dict = {
 }
 
 columns = ['E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'AA', 'AB', 'AC', 'AD', 'AE', 'AF', 'AG', 'AH']
+
+def read_file(name):
+    try:
+        with open("employees.txt", "r", encoding='utf-8') as f:
+            for line in f:
+                if name in line:
+                    line = line.strip().split()
+                    line = line[3:]
+                    stav = line[-1:]
+                    line = line[:-1]
+                    dol = " ".join(line)
+                    return dol, *stav
+    except FileNotFoundError:
+        print("Файл 'employees.txt' не найден.")
+        return False
 
 def get_date(string):
     date_order = string.group()
@@ -71,6 +73,9 @@ def get_sum(sheet, row):
     return s
 
 def open_file(name, month):
+    wb = False
+    process = True
+    employee = True
     try:
         wb = openpyxl.load_workbook(f"Табель 2022 {name}.xlsx", data_only=True) # открываем в режиме data_only для получения результата вычисления формул
         sheet = wb[f'{month}']
@@ -91,24 +96,34 @@ def open_file(name, month):
             wb = openpyxl.load_workbook(f"Табель 2022 {name}.xlsx")
     except FileNotFoundError:
         print(f"Файл 'Табель 2022 {name}.xlsx' не найден. Создаем новый...")
-        create_new(f"Табель 2022 {name}.xlsx")
+        process = create_new(f"Табель 2022 {name}.xlsx")
+        if process == False:
+            quit()
         print("Вводим данные в новый файл...")
         wb = openpyxl.load_workbook(f"Табель 2022 {name}.xlsx")
         sheet = wb['Январь']    # первый лист
         sheet['A1'] = name
-        if name in employees:
+
+        employee = read_file(name)
+        if employee == False:
+            input("Нажмите Enter, чтобы завершить программу.")
+            exit()
+        elif employee != None:
             for cell in sheet['3']:
                 if cell.value == "Должность":
-                    cell.value = employees[name][0]
+                    cell.value = employee[0]
                 elif cell.value == 1:
-                    cell.value = int(employees[name][1])
-            print("Сохраняем внесенные изменения...")
-            wb.save(f"Табель 2022 {name}.xlsx")
+                    cell.value = int(employee[1])
+                    print("Сохраняем внесенные изменения...")
+                    wb.save(f"Табель 2022 {name}.xlsx")
+                    break
         else:
             print("ФИО сотрудника не найдено в списке.")
             wb.close()
             wb = False
     finally:
+        if (process == False) or (employee == False):
+            quit()
         return wb
 
 def fill_cell(sheet, hours, sum_num, col, row, max_hours):
@@ -125,9 +140,13 @@ def fill_cell(sheet, hours, sum_num, col, row, max_hours):
         sheet[f'{col}{row}'] = float(n)
     return hours
 
-def insert_hours(sheet, month, start_col, hours, start_day=1):
-    dict_days = get_days(month)
+def insert_hours(sheet, name, month, start_col, hours, start_day=1):
+    dict_days, err = get_days(name, month)
     day_row = [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29,	31,	33,	35,	37,	39,	41,	43,	45,	47,	49,	51,	53,	55,	57,	59,	61,	63,	65]
+
+    if err == True:
+        input("Нажмите Enter, чтобы завершить программу.")
+        quit()
 
     if type(start_col) == int:  # если получен номер стобца, то получаем букву
         column = openpyxl.utils.get_column_letter(start_col)
@@ -145,17 +164,16 @@ def insert_hours(sheet, month, start_col, hours, start_day=1):
         else:
             pass
 
-def check_date(cell, sheet, cur_month, col, hours, check_hours):
+def check_date(cell, sheet, name, cur_month, col, hours, check_hours):
     date_order = re.search(r'\d\d\.\d\d\.\d\d\d\d', str(cell.value))    # ищем дату в заказ-наряде (формат дд.мм.гггг)
     if date_order != None:  # если есть дата в заказ-наряде
         day, month, year = get_date(date_order) # преобразуем строку в числа
-        print(day, month, year)
         if (year == "2022") and (month == cur_month):
-            insert_hours(sheet, cur_month, col, hours, day)
+            insert_hours(sheet, name, cur_month, col, hours, day)
         else:
-            insert_hours(sheet, cur_month, col, hours, 1)
+            insert_hours(sheet, name, cur_month, col, hours, 1)
     else:   # если заказ-наряд не содержит дату
-        insert_hours(sheet, cur_month, col, hours, 1)
+        insert_hours(sheet, name, cur_month, col, hours, 1)
 
     check_hours += hours
     return check_hours
@@ -171,15 +189,19 @@ j = 0
 order = ""
 date_order = ""
 
-laborious = openpyxl.load_workbook("Трудоемкость за январь.xlsx")
-department = laborious['17 департамент']    # лист с нашим департаментом
-max_col = department.max_column
+try:
+    laborious = openpyxl.load_workbook("Трудоемкость за январь.xlsx")
+    department = laborious['17 департамент']    # лист с нашим департаментом
+    max_col = department.max_column
+except FileNotFoundError:
+    print("Файл 'Трудоемкость за январь.xlsx' не найден.")
+    input("Нажмите Enter, чтобы завершить программу.")
+    quit()
 
 for cell in department['B']:
     string = str(cell.value)
     if (cur_month == "") and (string != "None"): # получим текущий месяц
         cur_month = get_cur_month(string)
-        # cur_month = 'Февраль'
 
     if string[:2] == '17':
         name = str(cell.value)  # получаем ФИО сотрудника
@@ -211,18 +233,18 @@ for cell in department['B']:
                 if first[f'{col}3'].value == None:   # если колонка пустая
                     first[f'{col}3'] = str(cell.value)   # вписываем заказ-наряд
                     sheet[f'{col}{max_rows-1}'] = hours  # вписываем часы заказ-наряда
-                    check_hours = check_date(cell, sheet, cur_month, col, hours, check_hours)
+                    check_hours = check_date(cell, sheet, name, cur_month, col, hours, check_hours)
                     break
                 elif first[f'{col}3'].value == str(cell.value):
                     sheet[f'{col}{max_rows-1}'] = hours
-                    check_hours = check_date(cell, sheet, cur_month, col, hours, check_hours)
+                    check_hours = check_date(cell, sheet, name, cur_month, col, hours, check_hours)
                     break
                 else:
                     continue
 
             if (check_hours == full_hours) and (full_hours != 0): # заполнение общих рабочих часов
                 print("Заполняем табель...")
-                insert_hours(sheet, cur_month, 5, general, 1)
+                insert_hours(sheet, name, cur_month, 5, general, 1)
                 print(f"Сохраняем и закрываем 'Табель 2022 {name}.xlsx' ...")
                 try:
                     timesheet.save(f"Табель 2022 {name}.xlsx")  # закрываем ранее открытый табель
@@ -233,3 +255,4 @@ for cell in department['B']:
                     timesheet.close()
 
 laborious.close()
+input("Нажмите Enter, чтобы завершить программу.")

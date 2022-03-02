@@ -3,12 +3,17 @@ import openpyxl
 import os
 
 def set_year(year):
-    fname = os.path.abspath(f"Производственный-календарь-{year}.xlsx")   # получаем абсолютный путь
-    wb = openpyxl.load_workbook(fname)
-    calendar = wb['Календарь']    # лист с нашим департаментом
-    return calendar
+    try:
+        fname = os.path.abspath(f"Производственный-календарь-{year}.xlsx")   # получаем абсолютный путь
+        wb = openpyxl.load_workbook(fname)
+        calendar = wb['Календарь']    # лист с нашим департаментом
+        return calendar
+    except FileNotFoundError:
+        print(f"Файл 'Производственный-календарь-{year}.xlsx' не найден.")
+        input("Нажмите Enter, чтобы завершить программу.")
+        quit()
 
-def get_days(month, year=2022):
+def get_workdays(month, year=2022):
     calendar = set_year(year)   # получаем календарь нужного месяца
     rows = calendar.max_row
     cols = calendar.max_column
