@@ -80,10 +80,16 @@ def update_table(data):
         # изменяем формат даты на YYYY-MM-DD для дальнейшей обработки в SQLite
         for i in data:
             i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
-            if i['date_end'] != '' and i['date_end'] != 'бессрочно' and i['date_end'] != '#Н/Д':
+            try:
+            # if i['date_end'] != '' and i['date_end'] != 'бессрочно' and i['date_end'] != '#Н/Д':
                 i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
-            if i['support'] != '' and i['support'] != 'бессрочно' and i['date_end'] != '#Н/Д':
+            except ValueError:
+                pass
+            # if i['support'] != '' and i['support'] != 'бессрочно' and i['date_end'] != '#Н/Д':
+            try:
                 i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
+            except ValueError:
+                pass
             tbl.upsert(i)
             k += 1
             yield(k)

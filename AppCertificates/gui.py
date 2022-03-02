@@ -63,7 +63,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.setColumnHidden(0, True) # Скрываем rowid
         self.tableView.horizontalHeader().resizeSection(1, 80)
         self.tableView.horizontalHeader().resizeSection(2, 70)
-        self.tableView.horizontalHeader().resizeSection(3, 80)
+        self.tableView.horizontalHeader().resizeSection(3, 100)
         self.tableView.horizontalHeader().resizeSection(4, 300)
         self.tableView.horizontalHeader().resizeSection(5, 200)
         self.tableView.horizontalHeader().resizeSection(6, 150)

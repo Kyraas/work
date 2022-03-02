@@ -38,13 +38,13 @@ def get_devices():
         i += 1
 
     # display information in a sequential form
-    # print(">    Все дисплеи:\n")
-    # for x in displays:
-    #     print('DeviceName:\t\t', x.DeviceName)
-    #     print("DeviceString:\t", x.DeviceString)
-    #     print("StateFlags:\t\t", x.StateFlags)
-    #     print("DeviceID:\t\t", x.DeviceID)
-    #     print("DeviceKey:\t\t", x.DeviceKey)
-    #     print(), print()
+    print(">    Все дисплеи:\n")
+    for x in displays:
+        print('DeviceName:\t\t', x.DeviceName)
+        print("DeviceString:\t", x.DeviceString)
+        print("StateFlags:\t\t", x.StateFlags)
+        print("DeviceID:\t\t", x.DeviceID)
+        print("DeviceKey:\t\t", x.DeviceKey)
+        print(), print()
 
 get_devices()

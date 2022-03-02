@@ -47,15 +47,15 @@ def convert_set(res):
     print(new_dict)
     return(new_dict)
 
-# get_device()
+get_device()
 
-# monitor = win32api.EnumDisplayMonitors()
-# for i in range(len(monitor)):
-#     s = monitor[i]  # (hMonitor, hdcMonitor, PyRECT)
-#     print(s)
-#     k = s[0]
-#     info = win32api.GetMonitorInfo(k)
-#     print(info, "\n\n")
+monitor = win32api.EnumDisplayMonitors()
+for i in range(len(monitor)):
+    s = monitor[i]  # (hMonitor, hdcMonitor, PyRECT)
+    print(s)
+    k = s[0]
+    info = win32api.GetMonitorInfo(k)
+    print(info, "\n\n")
 
 device = win32api.EnumDisplayDevices(None, 0)
 print(device.DeviceName)
