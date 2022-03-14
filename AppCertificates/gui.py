@@ -3,23 +3,31 @@
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
-from PyQt6 import QtCore
+from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import QSortFilterProxyModel
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QItemDelegate
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
 from siteparser import parse, update_table, count_rows, commit_db
-from six_months import half_year
-from last_update import get_update_date
+from sixmonths import half_year
+from lastupdate import get_update_date
+from creatingfiles import save_excel_file, save_word_file
+from datetime import datetime
+
+class AlignDelegate(QItemDelegate):
+    def paint(self, painter, option, index):
+        option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter
+        QItemDelegate.paint(self, painter, option, index)
 
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)  # Инициализация нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
+        self.menu.menuAction().setStatusTip("Создание файла")
         self.status = self.statusBar()
 
         # Модель
@@ -40,27 +48,13 @@ class Table(QMainWindow, Ui_MainWindow):
         # Проверяем дату последнего изменения файла базы данных
         self.last_update_date.setText(get_update_date())
 
-        # Инициализируем progressbar
-        data = parse()  # парсим сайт
-        if data != False:
-            max = count_rows(data)  # маскимальное кол-во строк
-            self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
-            self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
-            self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
-            self.progressbar.setHidden(True)   # пока что скрываем progressbar
-        else:
-            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
-            self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
-            self.status.repaint()
-            self.refreshButton.setText("Нет соединения с\nсайтом ФСТЭК России.")
-            self.refreshButton.setEnabled(False)
-
         # Представление
         self.tableView.setModel(self.proxy)
+        self.tableView.setItemDelegate(AlignDelegate())
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
 
         # Приведение заголовков таблицы к желаемому виду
-        self.tableView.setColumnHidden(0, True) # Скрываем rowid
+        self.tableView.hideColumn(0)
         self.tableView.horizontalHeader().resizeSection(1, 80)
         self.tableView.horizontalHeader().resizeSection(2, 70)
         self.tableView.horizontalHeader().resizeSection(3, 100)
@@ -83,7 +77,9 @@ class Table(QMainWindow, Ui_MainWindow):
         self.filters.addButton(self.radioButton_white)
 
         # Соединяем виджеты с функциями
-        self.refreshButton.clicked.connect(self.refresh)
+        self.action_Excel.triggered.connect(self.fileSave)
+        self.action_Word.triggered.connect(self.fileSave)
+        self.refreshButton.clicked.connect(self.start_refresh)
         self.radioButton_red.clicked.connect(self.red)
         self.radioButton_pink.clicked.connect(self.pink)
         self.radioButton_yellow.clicked.connect(self.yellow)
@@ -96,7 +92,53 @@ class Table(QMainWindow, Ui_MainWindow):
         self.searchBar.returnPressed.connect(self.search)
         self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
 
+    # При наведении курсора на меню "Файл" строка состояния становилась пустой
+    def event(self, e):
+        if e.type() == 112: # событие изменения строки состояния (в нижнем левом углу)
+            if e.tip() == '':
+                e = QtGui.QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
+        return super().event(e)
+
     # Методы класса
+    def fileSave(self):
+        r = ""
+        model = self.proxy  # берём за основу Proxy-модель для экспорта таблицы с учётом применённых фильтров
+        if (model.rowCount() == 0): # если строк 0, то отменяем сохранение
+            msg = QMessageBox.information(self, "Сохранение файла", f"Нечего сохранять.\nСтрок {model.rowCount()} шт.")
+            return
+        now = datetime.date(datetime.today())
+        date_time = now.strftime("%d.%m.%Y")
+        a = self.sender()
+        if a.text() == 'Экспортировать в Excel-файл':
+            r = "(*.xlsx)"
+        else:
+            r = "(*.docx)"
+
+        fileName, ok = QFileDialog.getSaveFileName(self, "Сохранить файл", f"./Сертификаты {model.rowCount()} шт. {date_time}", f"All Files{r}")
+        if not fileName:    # кнопка "отмена"
+            return 
+
+        table = []
+        for row in range(model.rowCount()): # цикл по строкам proxy модели
+            tbl_row = []
+            for column in range(1, model.columnCount()):    # цикл по колонкам, начиная с 1, а не с 0 (0 - колонка rowid)
+                tbl_row.append("{}".format(model.index(row, column).data() or ""))  # считываем данные каждой ячейки таблицы, если они имеются
+            table.append(tbl_row)
+
+        self.status.setStyleSheet("background-color : #FFFF89")
+        if r == "(*.xlsx)":
+            self.status.showMessage('Загрузка таблицы в Excel-файл...')
+            self.status.repaint()
+            save_excel_file(fileName, table)
+        else:
+            self.status.showMessage('Загрузка таблицы в Word-файл...')
+            self.status.repaint()
+            save_word_file(fileName, table)
+        self.status.setStyleSheet("background-color : #D8D8D8") # серый
+        self.status.showMessage('Загрузка завершена.')
+        self.status.repaint()
+        msg = QMessageBox.information(self, "Сохранение файла", f"Данные сохранены в файле: \n{fileName}")
+
     def search(self):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
@@ -118,38 +160,46 @@ class Table(QMainWindow, Ui_MainWindow):
             self.status.showMessage('По данному запросу не найдено.')
         self.status.repaint()
 
-    def refresh(self):  # Обновление БД
+    def refresh(self, data):
+        # Инициализируем progressbar
+        max = count_rows(data)  # маскимальное кол-во строк
+        self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
+        self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
+        self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
+
+        # Начало обновления базы
+        self.status.showMessage('Обновление базы...')
+        self.status.repaint()
+        self.progressbar.setHidden(False)   # отображаем progressbar
+        rows = update_table(data)   # получаем кол-во строк, внесенных в базу
+        for row in rows:
+            self.progressbar.setValue(row)
+        self.status.showMessage('Загрузка таблицы...')
+        self.status.repaint()
+        results = conn.execute(db.select([tbl])).fetchall()
+        self.model.update(results)
+
+        # Завершение обновления базы
+        self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
+        final = commit_db() # получаем сообщение об успешном обновлении
+        n = self.proxy.rowCount()
+        self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
+        self.status.showMessage(f'{final} Всего сертификатов: {n}.')
+        self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
+
+    def start_refresh(self):  # Обновление БД
         self.refreshButton.setEnabled(False)    # во время обновления базы делаем кнопку неактивной
         self.status.setStyleSheet("background-color : pink")
         self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
         data = parse()  # получаем результат функции parse
         if data != False:
-
-            # Начало обновления базы
-            self.status.showMessage('Обновление базы...')
-            self.status.repaint()
-            self.progressbar.setHidden(False)   # отображаем progressbar
-            rows = update_table(data)   # получаем кол-во строк, внесенных в базу
-            for row in rows:
-                self.progressbar.setValue(row)
-            self.status.showMessage('Загрузка таблицы...')
-            self.status.repaint()
-            results = conn.execute(db.select([tbl])).fetchall()
-            self.model.update(results)
-
-            # Завершение обновления базы
-            self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
-            final = commit_db() # получаем сообщение об успешном обновлении
-            n = self.proxy.rowCount()
-            self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
-            self.status.showMessage(f'{final} Всего сертификатов: {n}.')
-            self.refreshButton.setEnabled(True) # делаем кнопку снова активной
-            self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
+            self.refresh(data)
         else:
             self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
             self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
             self.status.repaint()
+        self.refreshButton.setEnabled(True)
 
     def red(self):  # Сертификат и поддержка не действительны
         red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
@@ -247,7 +297,6 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.repaint()
         event.accept()
 
-    
 app = QApplication(sys.argv)
 win = Table()
 win.show()

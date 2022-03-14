@@ -21,7 +21,6 @@ def get_html(url, params=None):
         r = requests.get(url, headers=HEADERS, params=params)
         return r
     except requests.exceptions.ConnectionError:
-        # print("Ошибка соединения")
         return False
         
 
@@ -64,7 +63,7 @@ def get_content(html):
 def parse():
     html = get_html(URL)
     if html != False:
-        if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK" 
+        if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK"
             return get_content(html.text)
         else:
             return False
@@ -81,11 +80,9 @@ def update_table(data):
         for i in data:
             i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
             try:
-            # if i['date_end'] != '' and i['date_end'] != 'бессрочно' and i['date_end'] != '#Н/Д':
                 i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
             except ValueError:
                 pass
-            # if i['support'] != '' and i['support'] != 'бессрочно' and i['date_end'] != '#Н/Д':
             try:
                 i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
             except ValueError:
@@ -103,3 +100,5 @@ def update_table(data):
 def commit_db():
     success = "База данных успешно обновлена."
     return success
+
+parse()

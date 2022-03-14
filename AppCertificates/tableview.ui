@@ -248,6 +248,9 @@ border-color: rgb(0, 0, 0);</string>
         </item>
         <item>
          <widget class="QPushButton" name="resetButton">
+          <property name="toolTip">
+           <string/>
+          </property>
           <property name="text">
            <string>Сброс фильтра</string>
           </property>
@@ -343,6 +346,9 @@ border-color: rgb(0, 0, 0);</string>
               <height>15</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Флаги, применительные только к действительным сертификатам</string>
+            </property>
             <property name="text">
              <string>Показать сертификаты, где информация о сроке сертификата не указана</string>
             </property>
@@ -364,6 +370,9 @@ border-color: rgb(0, 0, 0);</string>
               <width>16777215</width>
               <height>15</height>
              </size>
+            </property>
+            <property name="toolTip">
+             <string>Флаги, применительные только к действительным сертификатам</string>
             </property>
             <property name="text">
              <string>Показать сертификаты, где информация о технической поддержке не указана</string>
@@ -415,6 +424,9 @@ border-color: rgb(0, 0, 0);</string>
               <height>20</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Последнее обновление таблицы</string>
+            </property>
             <property name="text">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:11pt;&quot;&gt;Актуальность базы:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
@@ -459,8 +471,40 @@ border-color: rgb(0, 0, 0);</string>
      <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu">
+    <property name="statusTip">
+     <string>Создание файлов</string>
+    </property>
+    <property name="title">
+     <string>Файл</string>
+    </property>
+    <addaction name="action_Excel"/>
+    <addaction name="action_Word"/>
+   </widget>
+   <addaction name="menu"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionWord">
+   <property name="text">
+    <string>Word</string>
+   </property>
+  </action>
+  <action name="action_Excel">
+   <property name="text">
+    <string>Экспортировать в Excel-файл</string>
+   </property>
+   <property name="statusTip">
+    <string>Сохранение видимой таблицы в Excel-файл</string>
+   </property>
+  </action>
+  <action name="action_Word">
+   <property name="text">
+    <string>Экспортировать в Word-файл</string>
+   </property>
+   <property name="statusTip">
+    <string>Сохранение видимой таблицы в Word-файл</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import E, W, ttk
 from GetSetRes import *
 
 class CountDownMessageBox(tk.Toplevel): # Toplevel - верхний слой
@@ -49,13 +49,13 @@ class App(tk.Tk):
             list_device.append(i)
 
         self.lblMon = tk.Label(self, text = "Монитор: ")
-        self.lblMon.grid(column=0, row=0)
+        self.lblMon.grid(column=0, row=0, sticky=E, pady=(20, 0))
 
         self.comboMon = ttk.Combobox(self, values=list_device, state="readonly")    # список DeviceName
         self.comboMon.bind("<<ComboboxSelected>>", self.choice_dev)
         self.comboMon.current(0)    # по умолчанию берет первый (основной)
         self.choice_dev("<<ComboboxSelected>>")
-        self.comboMon.grid(column=1, row=0)
+        self.comboMon.grid(column=1, row=0, sticky=W, pady=(20, 0))
 
         self.lblMes = tk.Label(self, textvariable = self.message)  # строка состояния
         self.lblRes = tk.Label(self, textvariable = self.text)  # строка с текущим разрешением
@@ -63,7 +63,7 @@ class App(tk.Tk):
         self.lblRes.grid(column=0, row=1, columnspan=2)
 
         self.lbl = tk.Label(self, text = "Разрешения монитора: ")
-        self.lbl.grid(column=0, row=2)
+        self.lbl.grid(column=0, row=2, padx=(10, 0))
 
         self.btn = tk.Button(self, text="Применить", command=self.cmbx_event)
         self.btn.grid(column=2, row=2)
@@ -129,6 +129,6 @@ class App(tk.Tk):
 
 
 app = App()   # Создаем новое окно
-app.geometry('600x300')
+app.geometry('500x300')
 app.title("Разрешение экрана")
 app.mainloop()   # Запускаем бесконечный цикл окна. Без этой строки окно не отобразится
