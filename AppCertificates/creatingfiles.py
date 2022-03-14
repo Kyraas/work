@@ -34,8 +34,8 @@ def save_excel_file(fileName, table):
     for r, row in enumerate(table, start=1):
         for c, cell in enumerate(row):
             try:
-                date = datetime.strptime(cell[r][c], "%Y-%m-%d").date().strftime("%d.%m.%Y")
-                cell[r][c] = str(date)
+                date = datetime.strptime(cell, "%Y-%m-%d").date().strftime("%d.%m.%Y")
+                cell = str(date)
             except:
                 pass
             worksheet.write(r, c, cell) # запись данных в клетку (строка, колонка, данные)
