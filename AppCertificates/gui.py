@@ -5,7 +5,7 @@
 import sys
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import QSortFilterProxyModel
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QItemDelegate
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
@@ -17,10 +17,17 @@ from lastupdate import get_update_date
 from creatingfiles import save_excel_file, save_word_file
 from datetime import datetime
 
-class AlignDelegate(QItemDelegate):
+class MyDelegate(QStyledItemDelegate):
+    def displayText(self, value, locale):
+        try:
+            value = datetime.strptime(value, "%Y-%m-%d").date()
+            value = value.strftime("%d.%m.%Y")
+        except ValueError:
+            pass
+        return value
     def paint(self, painter, option, index):
         option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter
-        QItemDelegate.paint(self, painter, option, index)
+        QStyledItemDelegate.paint(self, painter, option, index)
 
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -50,8 +57,11 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Представление
         self.tableView.setModel(self.proxy)
-        self.tableView.setItemDelegate(AlignDelegate())
+        self.tableView.setItemDelegate(self.dateDelegate)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
+
+        # Делегат
+        self.dateDelegate = MyDelegate(self)
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.hideColumn(0)
