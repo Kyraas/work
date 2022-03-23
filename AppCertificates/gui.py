@@ -11,7 +11,7 @@ from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
-from siteparser import parse, update_table, count_rows, commit_db
+from siteparser import parse, update_table, count_rows, check_database
 from sixmonths import half_year
 from lastupdate import get_update_date
 from creatingfiles import save_excel_file, save_word_file
@@ -190,6 +190,9 @@ class Table(QMainWindow, Ui_MainWindow):
         rows = update_table(data)   # получаем кол-во строк, внесенных в базу
         for row in rows:
             self.progressbar.setValue(row)
+
+        check_database(data)
+
         self.status.showMessage('Загрузка таблицы...')
         self.status.repaint()
         results = conn.execute(db.select([tbl])).fetchall()
@@ -197,10 +200,9 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Завершение обновления базы
         self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
-        final = commit_db() # получаем сообщение об успешном обновлении
         n = self.proxy.rowCount()
         self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
-        self.status.showMessage(f'{final} Всего сертификатов: {n}.')
+        self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
         self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
 
     def start_refresh(self):  # Обновление БД

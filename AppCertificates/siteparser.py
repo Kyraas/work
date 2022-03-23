@@ -4,7 +4,7 @@ import requests  # Получение HTTP-запросов, удобнее и �
 from bs4 import BeautifulSoup  # Парсинг полученного контента
 import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных
 from datetime import datetime
-from orm import Certificate as tbl, Session
+from orm import Certificate as tbl, Session, get_id, delete_id
 sqlite3.paramstyle = "named"
 
 # Константы
@@ -97,8 +97,17 @@ def update_table(data):
     finally:
         Session.commit()   # сохраняем изменения в бд
 
-def commit_db():
-    success = "База данных успешно обновлена."
-    return success
+def check_database(data):
+    old_id = []
+    new_id = []
+    for i in data:
+        new_id.append(i['id'])
 
-parse()
+    old_data = get_id()
+    for i in old_data:
+        d = ''.join(i)
+        old_id.append(d)
+    result = list(set(old_id) - set(new_id))
+    delete_id(result)
+    Session.commit()
+    

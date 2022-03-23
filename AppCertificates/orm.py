@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Date, create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.sqlite import insert
+import sqlalchemy as db
 
 Base = declarative_base()
 engine = create_engine('sqlite:///Database.db')
@@ -48,5 +49,13 @@ class Certificate(Base):
             set_ = data
         )
         conn.execute(stmt)
+
+def get_id():
+    results = conn.execute(db.select(Certificate.id)).fetchall()
+    return results
+
+def delete_id(list_id):
+    for id in list_id:
+        conn.execute(db.delete(Certificate).where(Certificate.id == id))
 
 Base.metadata.create_all(engine)
