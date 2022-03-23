@@ -1,5 +1,8 @@
 __pycache__/
 output/
+*.xlsx
+*.docx
 *.ico
 *.db
+*.ui
 test.py

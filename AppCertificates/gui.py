@@ -55,13 +55,13 @@ class Table(QMainWindow, Ui_MainWindow):
         # Проверяем дату последнего изменения файла базы данных
         self.last_update_date.setText(get_update_date())
 
-        # Представление
-        self.tableView.setModel(self.proxy)
-        self.tableView.setItemDelegate(self.dateDelegate)
-        self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
-
         # Делегат
         self.dateDelegate = MyDelegate(self)
+        self.tableView.setItemDelegate(self.dateDelegate)
+
+        # Представление
+        self.tableView.setModel(self.proxy)
+        self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.hideColumn(0)
@@ -111,10 +111,11 @@ class Table(QMainWindow, Ui_MainWindow):
 
     # Методы класса
     def fileSave(self):
+        err = False
         r = ""
         model = self.proxy  # берём за основу Proxy-модель для экспорта таблицы с учётом применённых фильтров
         if (model.rowCount() == 0): # если строк 0, то отменяем сохранение
-            msg = QMessageBox.information(self, "Сохранение файла", f"Нечего сохранять.\nСтрок {model.rowCount()} шт.")
+            QMessageBox.information(self, "Сохранение файла", f"Нечего сохранять.\nСтрок {model.rowCount()} шт.")
             return
         now = datetime.date(datetime.today())
         date_time = now.strftime("%d.%m.%Y")
@@ -139,15 +140,20 @@ class Table(QMainWindow, Ui_MainWindow):
         if r == "(*.xlsx)":
             self.status.showMessage('Загрузка таблицы в Excel-файл...')
             self.status.repaint()
-            save_excel_file(fileName, table)
+            err = save_excel_file(self, fileName, table)
         else:
             self.status.showMessage('Загрузка таблицы в Word-файл...')
             self.status.repaint()
-            save_word_file(fileName, table)
+            err = save_word_file(self, fileName, table)
+        
+        if not err:
+            QMessageBox.information(self, "Сохранение файла", f"Данные сохранены в файле: \n{fileName}")
+            self.status.showMessage('Загрузка завершена.')
+        else:
+            self.status.showMessage('Ошибка загрузки.')
+
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
-        self.status.showMessage('Загрузка завершена.')
         self.status.repaint()
-        msg = QMessageBox.information(self, "Сохранение файла", f"Данные сохранены в файле: \n{fileName}")
 
     def search(self):
         self.status.setStyleSheet("background-color : #FFFF89")

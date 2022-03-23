@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
-from xlsxwriter import Workbook
+from xlsxwriter import Workbook, exceptions
 from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.shared import Pt, Cm
 from datetime import datetime
+from PyQt6.QtWidgets import QMessageBox
 
 headers = ['№ п/п', 'Номер сертификата', 'Дата выдачи', 'Срок действия', 'Наименование средства (шифр)', 'Наименования документов, требованиям которых соответствует средство', 'Схема сертификации', 'Испытательная лаборатория', 'Орган по сертификации', 'Заявитель', 'Реквизиты заявителя (индекс, адрес, телефон)', 'Информация об окончании срока технической поддержки, полученная от заявителя']
 
-def save_excel_file(fileName, table):
+def save_excel_file(self, fileName, table):
     # Создание excel-файла с указанным названием и форматирование колонок и строки
     workbook = Workbook(fileName)
     worksheet = workbook.add_worksheet()
@@ -39,9 +40,13 @@ def save_excel_file(fileName, table):
             except:
                 pass
             worksheet.write(r, c, cell) # запись данных в клетку (строка, колонка, данные)
-    workbook.close()
+    try:
+        workbook.close()
+    except exceptions.FileCreateError:
+        QMessageBox.warning(self, "Ошибка доступа", f"Файл '{fileName}' не может быть перезаписан, так как уже открыт.\nЗакройте файл и повторите попытку. ")
+        return True
 
-def save_word_file(fileName, data):
+def save_word_file(self, fileName, data):
 
     # добавим заголовки и нумерацию строк в таблицу, начиная от 1
     data.insert(0, headers)
@@ -91,5 +96,8 @@ def save_word_file(fileName, data):
                     font.size = Pt(7)
                     if i == 0:
                         font.bold = True
-
-    doc.save(fileName)
+    try:
+        doc.save(fileName)
+    except PermissionError:
+        QMessageBox.warning(self, "Ошибка доступа", f"Файл '{fileName}' не может быть перезаписан, так как уже открыт.\nЗакройте файл и повторите попытку. ")
+        return True
