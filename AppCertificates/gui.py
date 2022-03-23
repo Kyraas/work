@@ -48,7 +48,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
 
         # Считаем строки при запуске программы
-        n = self.proxy.rowCount()                    
+        n = self.model.rowCount()                    
         self.status.showMessage(f'Всего сертификатов: {n}.')
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
 
@@ -200,7 +200,7 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Завершение обновления базы
         self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
-        n = self.proxy.rowCount()
+        n = self.model.rowCount()
         self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
         self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
         self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
