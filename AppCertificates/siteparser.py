@@ -7,6 +7,21 @@ from datetime import datetime
 from orm import Certificate as tbl, Session, get_id, delete_id
 sqlite3.paramstyle = "named"
 
+month = {
+    "января": "01",
+    "февраля": "02",
+    "марта": "03",
+    "апреля": "04",
+    "мая": "05",
+    "июня": "06",
+    "июля": "07",
+    "августа": "08",
+    "сентября": "09",
+    "октября": "10",
+    "ноября": "11",
+    "декабря": "12",
+}
+
 # Константы
 URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
   
@@ -22,7 +37,6 @@ def get_html(url, params=None):
         return r
     except requests.exceptions.ConnectionError:
         return False
-        
 
 def get_content(html):
     headers = {
@@ -57,14 +71,29 @@ def get_content(html):
             item[headers[i]] = row[i]  # каждому заголовку сопостовляем ячейку из строки
         data.append(item)  # полученный item добавляем в общий список данных data
     return data
-        
+
+
+def get_update_date(html):
+    soup = BeautifulSoup(html, "html.parser")  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
+    label = soup.find("dd", class_="modified").text.strip()
+    text = label.replace("Обновлено: ", "")
+    text = text.split()
+    m = month.get(text[1])
+    text[1] = m
+    date = ".".join(text[:3])
+    str_time = " ".join(text[3:])
+    actual_date = "Актуальность базы ФСТЭК: " + date + " " + str_time
+    return actual_date
 
 # Основная функция
-def parse():
+def parse(flag=False):
     html = get_html(URL)
     if html != False:
         if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK"
-            return get_content(html.text)
+            if flag:
+                return get_update_date(html.text)
+            else:
+                return get_content(html.text)
         else:
             return False
     else:
@@ -90,10 +119,8 @@ def update_table(data):
             tbl.upsert(i)
             k += 1
             yield(k)
-
     except sqlite3.Error as error:
         print("Ошибка при работе с SQLite: ", error)
-    
     finally:
         Session.commit()   # сохраняем изменения в бд
 
@@ -110,4 +137,3 @@ def check_database(data):
     result = list(set(old_id) - set(new_id))
     delete_id(result)
     Session.commit()
-    

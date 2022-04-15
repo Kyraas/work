@@ -51,8 +51,7 @@ class Certificate(Base):
         conn.execute(stmt)
 
 def get_id():
-    results = conn.execute(db.select(Certificate.id)).fetchall()
-    return results
+    return conn.execute(db.select(Certificate.id)).fetchall()
 
 def delete_id(list_id):
     for id in list_id:

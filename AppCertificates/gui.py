@@ -5,7 +5,7 @@
 import sys
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import QSortFilterProxyModel
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate, QStyleOptionViewItem, QStyle
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
@@ -48,12 +48,13 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
 
         # Считаем строки при запуске программы
-        n = self.model.rowCount()                    
+        n = self.model.rowCount()
         self.status.showMessage(f'Всего сертификатов: {n}.')
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
 
         # Проверяем дату последнего изменения файла базы данных
         self.last_update_date.setText(get_update_date())
+        self.actual_date.setText(parse(True))
 
         # Делегат
         self.dateDelegate = MyDelegate(self)
@@ -211,7 +212,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
         data = parse()  # получаем результат функции parse
-        if data != False:
+        if data:
             self.refresh(data)
         else:
             self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
