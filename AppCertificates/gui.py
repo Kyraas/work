@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
+# https://nikolak.com/pyqt-threading-tutorial/
 # https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import QSortFilterProxyModel
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate, QStyleOptionViewItem, QStyle
+from PyQt6.QtCore import QSortFilterProxyModel, QThread
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn

@@ -4,5 +4,6 @@ output/
 *.docx
 *.ico
 *.db
+*.ods
 *.ui
 test.py
