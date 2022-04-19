@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-# https://nikolak.com/pyqt-threading-tutorial/
-# https://github.com/FokinAleksandr/PyQT-CRUD-App/blob/f0933cbbb2c6b85b9bce83ecc0be4490a6b8c210/app/tablewidgets/employees.py#L111
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal
+from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QTimer
 from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
@@ -31,7 +29,15 @@ class MyDelegate(QStyledItemDelegate):
         QStyledItemDelegate.paint(self, painter, option, index)
 
 
-class WorkerThread(QThread):
+class WorkerThreadLaunch(QThread):
+    get_actual_dates = pyqtSignal(str, str)
+    def run(self):
+        local_update = get_update_date()
+        last_update = parse(True)
+        self.get_actual_dates.emit(local_update, last_update)
+
+
+class WorkerThreadUpdate(QThread):
     start_update = pyqtSignal(list)
     cancel_update = pyqtSignal()
     update_progressbar = pyqtSignal(int)
@@ -75,9 +81,11 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage(f'Всего сертификатов: {n}.')
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
 
-        # Проверяем дату последнего изменения файла базы данных
-        self.last_update_date.setText(get_update_date())
-        self.actual_date.setText(parse(True))
+        # Получаем даты изменений баз данных (на сайте ФСТЭК и локальная БД)
+        init_worker = WorkerThreadLaunch()
+        init_worker.get_actual_dates.connect(self.set_update_date)
+        init_worker.start()
+        init_worker.quit()
 
         # Делегат
         self.dateDelegate = MyDelegate(self)
@@ -100,7 +108,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.horizontalHeader().resizeSection(9, 300)
         self.tableView.horizontalHeader().resizeSection(10, 300)
         self.tableView.horizontalHeader().resizeSection(11, 103)
-        self.tableView.resizeRowsToContents()   # Высота строк подстраивается под содержимое. Замедляет запуск приложения!!!
+        # self.tableView.resizeRowsToContents()   # Высота строк подстраивается под содержимое. Замедляет запуск приложения!!!
+        QTimer.singleShot(0, lambda: self.resize_row(0, n, 10))
         
         # Создаем группу фильтров
         self.filters = QButtonGroup(self)
@@ -124,7 +133,24 @@ class Table(QMainWindow, Ui_MainWindow):
         self.resetButton.clicked.connect(self.reset)
         self.searchButton.clicked.connect(self.search)
         self.searchBar.returnPressed.connect(self.search)
-        self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
+        # self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
+        self.proxy.layoutChanged.connect(lambda: self.resize_row(0, n, 10))
+
+    # Замена функции resizeRowsToContents()
+    def resize_row(self, row, n, count=1):
+        todo = count
+        while (row < n) and (todo >= 0):
+            self.tableView.resizeRowToContents(row)    
+            row += 1
+            todo -= 1
+
+        if row < n:
+            QTimer.singleShot(0, lambda: self.resize_row(row, n, count))
+
+    # Отображение полученных дат в приложении
+    def set_update_date(self, last_date, actual_date):
+        self.last_update_date.setText(last_date)
+        self.actual_date.setText(actual_date)
     
     # Инициализация и запуск класса WorkerThread
     def start_update_database(self):  # Обновление БД
@@ -133,7 +159,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
 
-        self.worker = WorkerThread()
+        self.worker = WorkerThreadUpdate()
         self.worker.start()
         self.worker.update_progressbar.connect(self.evt_update_progress)
         self.worker.finish_update.connect(self.finish_update_database)
@@ -146,6 +172,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
         self.status.repaint()
         self.refreshButton.setEnabled(True)
+        self.worker.quit()
 
     # Начало обновления базы
     def update_database(self, data):
@@ -167,12 +194,14 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Загрузка таблицы...')
         self.status.repaint()
         self.model.update(results)
-
+        self.reset()    # сбарсываем фильтры, если были использованы во время обновления
+        self.refreshButton.setEnabled(True)
         self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
         n = self.model.rowCount()
         self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
         self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
         self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
+        self.worker.quit()
 
     # При наведении курсора на меню "Файл" строка состояния становилась пустой
     def event(self, e):
