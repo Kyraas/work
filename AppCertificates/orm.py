@@ -6,7 +6,7 @@ from sqlalchemy.dialects.sqlite import insert
 import sqlalchemy as db
 
 Base = declarative_base()
-engine = create_engine('sqlite:///Database.db')
+engine = create_engine('sqlite:///Database.db', connect_args={'check_same_thread': False})  # Нужно для исключения конфликта потоков GUI и SQLite
 conn = engine.connect()
 Session = scoped_session(sessionmaker())
 Session.configure(bind=engine, autoflush=False, expire_on_commit=False)

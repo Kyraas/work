@@ -5,7 +5,7 @@
 
 import sys
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import QSortFilterProxyModel, QThread
+from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal
 from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
 from tableview import Ui_MainWindow
 from AbstractModel import MyTableModel
@@ -22,13 +22,34 @@ class MyDelegate(QStyledItemDelegate):
     def displayText(self, value, locale):
         try:
             value = datetime.strptime(value, "%Y-%m-%d").date()
-            value = value.strftime("%d.%m.%Y")
+            value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
         except ValueError:
             pass
         return value
     def paint(self, painter, option, index):
-        option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter
+        option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter   # Выравнивание данных таблицы по центру
         QStyledItemDelegate.paint(self, painter, option, index)
+
+
+class WorkerThread(QThread):
+    start_update = pyqtSignal(list)
+    cancel_update = pyqtSignal()
+    update_progressbar = pyqtSignal(int)
+    finish_update = pyqtSignal(list)
+
+    def run(self):
+        data = parse()  # получаем результат функции parse
+        if data:
+            self.start_update.emit(data)
+            rows = update_table(data)   # получаем кол-во строк, внесенных в базу
+            for row in rows:
+                self.update_progressbar.emit(row)
+            check_database(data)
+            results = conn.execute(db.select([tbl])).fetchall()
+            self.finish_update.emit(results)
+        else:
+            self.cancel_update.emit()
+        
 
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -36,6 +57,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setupUi(self)  # Инициализация нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
         self.menu.menuAction().setStatusTip("Создание файла")
+        self.setWindowIcon(QtGui.QIcon('icon.ico'))
         self.status = self.statusBar()
 
         # Модель
@@ -91,7 +113,7 @@ class Table(QMainWindow, Ui_MainWindow):
         # Соединяем виджеты с функциями
         self.action_Excel.triggered.connect(self.fileSave)
         self.action_Word.triggered.connect(self.fileSave)
-        self.refreshButton.clicked.connect(self.start_refresh)
+        self.refreshButton.clicked.connect(self.start_update_database)
         self.radioButton_red.clicked.connect(self.red)
         self.radioButton_pink.clicked.connect(self.pink)
         self.radioButton_yellow.clicked.connect(self.yellow)
@@ -103,6 +125,54 @@ class Table(QMainWindow, Ui_MainWindow):
         self.searchButton.clicked.connect(self.search)
         self.searchBar.returnPressed.connect(self.search)
         self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
+    
+    # Инициализация и запуск класса WorkerThread
+    def start_update_database(self):  # Обновление БД
+        self.refreshButton.setEnabled(False)    # во время обновления базы делаем кнопку неактивной
+        self.status.setStyleSheet("background-color : pink")
+        self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
+        self.status.repaint()
+
+        self.worker = WorkerThread()
+        self.worker.start()
+        self.worker.update_progressbar.connect(self.evt_update_progress)
+        self.worker.finish_update.connect(self.finish_update_database)
+        self.worker.start_update.connect(self.update_database)
+        self.worker.cancel_update.connect(self.cancel_update_database)
+
+    # При отсутствии соединения с сайтом ФСТЭК
+    def cancel_update_database(self):
+        self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
+        self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
+        self.status.repaint()
+        self.refreshButton.setEnabled(True)
+
+    # Начало обновления базы
+    def update_database(self, data):
+        max = count_rows(data)  # маскимальное кол-во строк
+        self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
+        self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
+        self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
+
+        self.status.showMessage('Обновление базы...')
+        self.status.repaint()
+        self.progressbar.setHidden(False)   # отображаем progressbar
+
+    # Анимация progressbar'а
+    def evt_update_progress(self, value):
+        self.progressbar.setValue(value)
+
+    # Завершение процесса обновления БД
+    def finish_update_database(self, results):
+        self.status.showMessage('Загрузка таблицы...')
+        self.status.repaint()
+        self.model.update(results)
+
+        self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
+        n = self.model.rowCount()
+        self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
+        self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
+        self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
 
     # При наведении курсора на меню "Файл" строка состояния становилась пустой
     def event(self, e):
@@ -177,49 +247,6 @@ class Table(QMainWindow, Ui_MainWindow):
             self.status.setStyleSheet("background-color : #D8D8D8")
             self.status.showMessage('По данному запросу не найдено.')
         self.status.repaint()
-
-    def refresh(self, data):
-        # Инициализируем progressbar
-        max = count_rows(data)  # маскимальное кол-во строк
-        self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
-        self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
-        self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
-
-        # Начало обновления базы
-        self.status.showMessage('Обновление базы...')
-        self.status.repaint()
-        self.progressbar.setHidden(False)   # отображаем progressbar
-        rows = update_table(data)   # получаем кол-во строк, внесенных в базу
-        for row in rows:
-            self.progressbar.setValue(row)
-
-        check_database(data)
-
-        self.status.showMessage('Загрузка таблицы...')
-        self.status.repaint()
-        results = conn.execute(db.select([tbl])).fetchall()
-        self.model.update(results)
-
-        # Завершение обновления базы
-        self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
-        n = self.model.rowCount()
-        self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
-        self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
-        self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
-
-    def start_refresh(self):  # Обновление БД
-        self.refreshButton.setEnabled(False)    # во время обновления базы делаем кнопку неактивной
-        self.status.setStyleSheet("background-color : pink")
-        self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
-        self.status.repaint()
-        data = parse()  # получаем результат функции parse
-        if data:
-            self.refresh(data)
-        else:
-            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
-            self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
-            self.status.repaint()
-        self.refreshButton.setEnabled(True)
 
     def red(self):  # Сертификат и поддержка не действительны
         red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
@@ -315,7 +342,6 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Закрываем...')
         self.status.repaint()
-        event.accept()
 
 app = QApplication(sys.argv)
 win = Table()
