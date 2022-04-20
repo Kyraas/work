@@ -11,10 +11,13 @@ from orm import Certificate as tbl, conn
 import sqlalchemy as db
 from sqlalchemy.sql import func
 from siteparser import parse, update_table, count_rows, check_database
-from sixmonths import half_year
-from lastupdate import get_update_date
+from datecheck import get_update_date, half_year
 from creatingfiles import save_excel_file, save_word_file
 from datetime import datetime
+from ctypes import windll
+
+myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
+windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid) # для отображения значка на панели
 
 class MyDelegate(QStyledItemDelegate):
     def displayText(self, value, locale):
@@ -34,6 +37,8 @@ class WorkerThreadLaunch(QThread):
     def run(self):
         local_update = get_update_date()
         last_update = parse(True)
+        if last_update == False:
+            last_update = "Актуальность базы ФСТЭК: нет данных"
         self.get_actual_dates.emit(local_update, last_update)
 
 
@@ -63,7 +68,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setupUi(self)  # Инициализация нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
         self.menu.menuAction().setStatusTip("Создание файла")
-        self.setWindowIcon(QtGui.QIcon('icon.ico'))
+        self.setWindowIcon(QtGui.QIcon('myicon.ico'))
         self.status = self.statusBar()
 
         # Модель
@@ -78,8 +83,12 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Считаем строки при запуске программы
         n = self.model.rowCount()
-        self.status.showMessage(f'Всего сертификатов: {n}.')
-        self.status.setStyleSheet("background-color : #D8D8D8") # серый
+        if n == 0:
+            self.status.showMessage(f'База данных пуста. Обновите базу данных, чтобы загрузить данные.')
+            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
+        else:
+            self.status.showMessage(f'Всего сертификатов: {n}.')
+            self.status.setStyleSheet("background-color : #D8D8D8") # серый
 
         # Получаем даты изменений баз данных (на сайте ФСТЭК и локальная БД)
         init_worker = WorkerThreadLaunch()
@@ -108,7 +117,6 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.horizontalHeader().resizeSection(9, 300)
         self.tableView.horizontalHeader().resizeSection(10, 300)
         self.tableView.horizontalHeader().resizeSection(11, 103)
-        # self.tableView.resizeRowsToContents()   # Высота строк подстраивается под содержимое. Замедляет запуск приложения!!!
         QTimer.singleShot(0, lambda: self.resize_row(0, n, 10))
         
         # Создаем группу фильтров
@@ -131,16 +139,16 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_date.stateChanged.connect(self.white)
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
-        self.searchButton.clicked.connect(self.search)
-        self.searchBar.returnPressed.connect(self.search)
-        # self.proxy.layoutChanged.connect(self.tableView.resizeRowsToContents)   # при изменении отображения вызываем функцию resizeRowsToContents
+        self.searchBar.textChanged.connect(self.search)
+        # self.searchButton.clicked.connect(self.search)
+        # self.searchBar.returnPressed.connect(self.search)
         self.proxy.layoutChanged.connect(lambda: self.resize_row(0, n, 10))
 
     # Замена функции resizeRowsToContents()
     def resize_row(self, row, n, count=1):
         todo = count
         while (row < n) and (todo >= 0):
-            self.tableView.resizeRowToContents(row)    
+            self.tableView.resizeRowToContents(row) # постепенное построчное изменение высоты строк в соответствии с содержимым
             row += 1
             todo -= 1
 
@@ -169,7 +177,7 @@ class Table(QMainWindow, Ui_MainWindow):
     # При отсутствии соединения с сайтом ФСТЭК
     def cancel_update_database(self):
         self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
-        self.status.showMessage('Нет соединения с сайтом ФСТЭК России.') 
+        self.status.showMessage('Нет соединения с сайтом ФСТЭК России. Проверьте интернет-соединение или повторите попытку позже.') 
         self.status.repaint()
         self.refreshButton.setEnabled(True)
         self.worker.quit()
@@ -281,49 +289,25 @@ class Table(QMainWindow, Ui_MainWindow):
         red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
         if self.radioButton_red.isChecked():
             self.myquery(red_filter)
-            if self.checkBox_date.isEnabled:
-                if self.checkBox_date.isChecked:
-                    self.checkBox_date.setChecked(False)
-                if self.checkBox_sup.isChecked:
-                    self.checkBox_sup.setChecked(False)
-                self.checkBox_date.setEnabled(False)
-                self.checkBox_sup.setEnabled(False)
+            self.reset_checkBoxes()
 
     def pink(self): # Поддержка не действительна
         pink_filter = (tbl.support <= func.current_date()) & (tbl.date_end > func.current_date()) & (tbl.support != '')
         if self.radioButton_pink.isChecked():
             self.myquery(pink_filter)
-            if self.checkBox_date.isEnabled:
-                if self.checkBox_date.isChecked:
-                    self.checkBox_date.setChecked(False)
-                if self.checkBox_sup.isChecked:
-                    self.checkBox_sup.setChecked(False)
-                self.checkBox_date.setEnabled(False)
-                self.checkBox_sup.setEnabled(False)
+            self.reset_checkBoxes()
 
     def yellow(self):   # Сертификат не действителен
         yellow_filter = (tbl.date_end <= func.current_date()) & (tbl.date_end != '#Н/Д')
         if self.radioButton_yellow.isChecked():
             self.myquery(yellow_filter)
-            if self.checkBox_date.isEnabled:
-                if self.checkBox_date.isChecked:
-                    self.checkBox_date.setChecked(False)
-                if self.checkBox_sup.isChecked:
-                    self.checkBox_sup.setChecked(False)
-                self.checkBox_date.setEnabled(False)
-                self.checkBox_sup.setEnabled(False)
+            self.reset_checkBoxes()
             
     def gray(self): # Сертификат истечёт менее, чем через полгода
         gray_filter = (tbl.date_end <= half_year()) & (tbl.date_end > func.current_date())
         if self.radioButton_gray.isChecked():
             self.myquery(gray_filter)
-            if self.checkBox_date.isEnabled:
-                if self.checkBox_date.isChecked:
-                    self.checkBox_date.setChecked(False)
-                if self.checkBox_sup.isChecked:
-                    self.checkBox_sup.setChecked(False)
-                self.checkBox_date.setEnabled(False)
-                self.checkBox_sup.setEnabled(False)
+            self.reset_checkBoxes()
 
     def white(self):    # Сертификат и поддержка действительны
         white_filter = (tbl.support > func.current_date()) & (tbl.date_end > func.current_date())
@@ -336,12 +320,18 @@ class Table(QMainWindow, Ui_MainWindow):
                 white_filter = white_filter + ((tbl.date_end > func.current_date()) & (tbl.support == ''))
             self.myquery(white_filter)
 
+    def reset_checkBoxes(self):
+        if self.checkBox_date.isEnabled:    # если хотя бы один флаг включён
+            if self.checkBox_date.isChecked:    # убираем флаги, если они стоят
+                self.checkBox_date.setChecked(False)
+            if self.checkBox_sup.isChecked:
+                self.checkBox_sup.setChecked(False)
+            self.checkBox_date.setEnabled(False)    # отключаем флаги
+            self.checkBox_sup.setEnabled(False)
+
     def reset(self):    # Сброс фильтров
-        self.checkBox_date.setChecked(False)
-        self.checkBox_sup.setChecked(False)
-        self.checkBox_date.setEnabled(False)
-        self.checkBox_sup.setEnabled(False)
-        self.filters.setExclusive(False)
+        self.reset_checkBoxes()
+        self.filters.setExclusive(False)    # делаем переключатели уникальными и отдельно выключаем каждый
         self.radioButton_red.setChecked(False)
         self.radioButton_pink.setChecked(False)
         self.radioButton_yellow.setChecked(False)

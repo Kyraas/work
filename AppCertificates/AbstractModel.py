@@ -2,12 +2,12 @@
 # https://stackoverflow.com/questions/17697352/pyqt-implement-a-qabstracttablemodel-for-display-in-qtableview
 # https://www.pythonguis.com/tutorials/qtableview-modelviews-numpy-pandas/
 # https://doc.qt.io/qtforpython-5/overviews/model-view-programming.html?highlight=layoutabouttobechanged
-from datetime import *
+from datetime import datetime, date
 from PyQt6.QtCore import QAbstractTableModel, Qt, QVariant, QModelIndex
 from PyQt6 import QtGui
 import sqlalchemy as db
 from orm import Certificate, conn
-from sixmonths import half_year
+from datecheck import half_year
 
 headers = ['№', '№\nсертификата', 'Дата\nвнесения\nв реестр', 'Срок\nдействия\nсертификата', 'Наименование\nсредства (шифр)', 'Наименования документов,\nтребованиям которых\nсоответствует средство', 'Схема\nсертификации', 'Испытательная\nлаборатория', 'Орган по\nсертификации', 'Заявитель', 'Реквизиты заявителя\n(индекс, адрес, телефон)', 'Информация об\nокончании срока\nтехнической\nподдержки,\nполученная\nот заявителя']
 
@@ -47,7 +47,11 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
             try:
                 if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date) and (datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date):    # Если и сертификат, и подержка не действительны
                     return QtGui.QColor('#ff7f7f')  # красный
-                elif datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
+            except ValueError:
+                pass
+
+            try:
+                if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
                     return QtGui.QColor('#ff9fc3')  # розовый
             except ValueError:
                 pass

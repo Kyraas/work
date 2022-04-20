@@ -72,7 +72,6 @@ def get_content(html):
         data.append(item)  # полученный item добавляем в общий список данных data
     return data
 
-
 def get_update_date(html):
     soup = BeautifulSoup(html, "html.parser")  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
     label = soup.find("dd", class_="modified").text.strip()

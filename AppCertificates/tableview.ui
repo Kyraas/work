@@ -23,6 +23,12 @@
         <height>0</height>
        </size>
       </property>
+      <property name="accessibleDescription">
+       <string/>
+      </property>
+      <property name="autoFillBackground">
+       <bool>false</bool>
+      </property>
       <property name="lineWidth">
        <number>3</number>
       </property>
@@ -453,11 +459,11 @@ border-color: rgb(0, 0, 0);</string>
        <widget class="QLabel" name="actual_date">
         <property name="font">
          <font>
-          <pointsize>9</pointsize>
+          <pointsize>11</pointsize>
          </font>
         </property>
         <property name="text">
-         <string>Актуальность БД ФСТЭК:</string>
+         <string>Актуальность БД ФСТЭК: получаем данные...</string>
         </property>
        </widget>
       </item>
@@ -465,11 +471,11 @@ border-color: rgb(0, 0, 0);</string>
        <widget class="QLabel" name="last_update_date">
         <property name="font">
          <font>
-          <pointsize>9</pointsize>
+          <pointsize>11</pointsize>
          </font>
         </property>
         <property name="text">
-         <string>Актуальность текущей БД:</string>
+         <string>Актуальность текущей БД: получаем данные...</string>
         </property>
        </widget>
       </item>
