@@ -35,22 +35,19 @@ class MyDelegate(QStyledItemDelegate):
 # Поток, меняющий размер высоты строк таблицы (поочередно)
 class WorkerThreadResize(QThread):
     resize_rows = pyqtSignal(int)
-    def __init__(self, n):
-        super(QThread, self).__init__()
+    def __init__(self, n, parent=None):
+        super(WorkerThreadResize, self).__init__(parent)
         self.running = False
         self.n = n
-
     def run(self):
         self.running = True
         row = 0
-        while (row <= self.n) and (self.running):
+        while (row <= self.n) and (self.n > 0) and (self.running):
             self.resize_rows.emit(row)
             row += 1
-            if row % 30 == 0:
+            if row % 20 == 0:
                 QtCore.QThread.msleep(500)
-            if row == self.n:
-                break
-        self.running = False
+
 
 # Поток, получающий последние даты обновления БД (ФСТЭК и локального файла)
 class WorkerThreadLaunch(QThread):
@@ -61,6 +58,7 @@ class WorkerThreadLaunch(QThread):
         if last_update == False:
             last_update = "Актуальность базы ФСТЭК: нет данных"
         self.get_actual_dates.emit(local_update, last_update)
+        self.quit()
 
 # Поток, обновляющий БД и progresbar
 class WorkerThreadUpdate(QThread):
@@ -81,6 +79,7 @@ class WorkerThreadUpdate(QThread):
             self.finish_update.emit(results)
         else:
             self.cancel_update.emit()
+        self.quit()
         
 
 class Table(QMainWindow, Ui_MainWindow):
@@ -90,7 +89,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("Таблица сертификатов")
         self.showMaximized()
         self.menu.menuAction().setStatusTip("Создание файла")
-        self.setWindowIcon(QtGui.QIcon('myicon.ico'))
+        self.setWindowIcon(QtGui.QIcon('icon.ico'))
         self.status = self.statusBar()
 
         # Модель
@@ -113,12 +112,11 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Получаем даты изменений баз данных (на сайте ФСТЭК и локальная БД)
         init_worker = WorkerThreadLaunch()
-        self.resize_worker = WorkerThreadResize(self.proxy.rowCount())
+        self.resize_worker = WorkerThreadResize(self.proxy.rowCount(), parent=None)
         init_worker.get_actual_dates.connect(self.set_update_date)
         self.resize_worker.resize_rows.connect(self.resize_row)
         init_worker.start()
         self.resize_worker.start()
-        init_worker.quit()   
 
         # Делегат
         self.dateDelegate = MyDelegate(self)
@@ -163,8 +161,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
         self.searchBar.textChanged.connect(self.search)
-        self.proxy.layoutAboutToBeChanged.connect(self.stop_resize_rows)
-        self.proxy.layoutChanged.connect(self.start_resize_rows)
+        self.proxy.layoutChanged.connect(self.start_resize)
 
     # При наведении курсора на меню "Файл" строка состояния становилась пустой
     def event(self, e):
@@ -173,16 +170,9 @@ class Table(QMainWindow, Ui_MainWindow):
                 e = QtGui.QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
         return super().event(e)
 
-    # Остановка потока, изменяющего высоту строк таблицы
-    def stop_resize_rows(self):
-        self.resize_worker.running = False
-
-    # Запуск потока, изменяющего высоту строк таблицы
-    def start_resize_rows(self):
-        if not self.resize_worker.isRunning():
-            self.resize_worker = WorkerThreadResize(self.proxy.rowCount())
-            self.resize_worker.resize_rows.connect(self.resize_row)
-            self.resize_worker.start()
+    def start_resize(self):
+        self.resize_worker.n = self.proxy.rowCount()
+        self.resize_worker.start()
 
     # Вместо встроенной функции resizeRowsToContents()
     def resize_row(self, row):
@@ -292,10 +282,10 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.repaint()
 
     def search(self):
+        self.proxy.layoutAboutToBeChanged.emit()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
         self.status.repaint()
-        self.proxy.layoutAboutToBeChanged.emit()
         self.proxy.setFilterRegularExpression(self.searchBar.text())
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
@@ -310,33 +300,25 @@ class Table(QMainWindow, Ui_MainWindow):
     def red(self):  # Сертификат и поддержка не действительны
         red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
         if self.radioButton_red.isChecked():
-            self.proxy.layoutAboutToBeChanged.emit()
             self.myquery(red_filter)
-            self.proxy.layoutChanged.emit()
             self.reset_checkBoxes()
 
     def pink(self): # Поддержка не действительна
         pink_filter = (tbl.support <= func.current_date()) & (tbl.date_end > func.current_date()) & (tbl.support != '')
         if self.radioButton_pink.isChecked():
-            self.proxy.layoutAboutToBeChanged.emit()
             self.myquery(pink_filter)
-            self.proxy.layoutChanged.emit()
             self.reset_checkBoxes()
 
     def yellow(self):   # Сертификат не действителен
         yellow_filter = (tbl.date_end <= func.current_date()) & (tbl.date_end != '#Н/Д')
         if self.radioButton_yellow.isChecked():
-            self.proxy.layoutAboutToBeChanged.emit()
             self.myquery(yellow_filter)
-            self.proxy.layoutChanged.emit()
             self.reset_checkBoxes()
             
     def gray(self): # Сертификат истечёт менее, чем через полгода
         gray_filter = (tbl.date_end <= half_year()) & (tbl.date_end > func.current_date())
         if self.radioButton_gray.isChecked():
-            self.proxy.layoutAboutToBeChanged.emit()
             self.myquery(gray_filter)
-            self.proxy.layoutChanged.emit()
             self.reset_checkBoxes()
 
     def white(self):    # Сертификат и поддержка действительны
@@ -344,13 +326,11 @@ class Table(QMainWindow, Ui_MainWindow):
         if self.radioButton_white.isChecked():
             self.checkBox_date.setEnabled(True)
             self.checkBox_sup.setEnabled(True)
-            self.proxy.layoutAboutToBeChanged.emit()
             if self.checkBox_date.isChecked():
                 white_filter = white_filter + (tbl.date_end == '#Н/Д')
             if self.checkBox_sup.isChecked():
                 white_filter = white_filter + ((tbl.date_end > func.current_date()) & (tbl.support == ''))
             self.myquery(white_filter)
-            self.proxy.layoutChanged.emit()
 
     def reset_checkBoxes(self):
         if self.checkBox_date.isEnabled:    # если хотя бы один флаг включён
@@ -370,17 +350,17 @@ class Table(QMainWindow, Ui_MainWindow):
         self.radioButton_gray.setChecked(False)
         self.radioButton_white.setChecked(False)
         self.filters.setExclusive(True)
-        self.proxy.layoutAboutToBeChanged.emit()
         self.proxy.sort(-1)
         self.myquery()
-        self.proxy.layoutChanged.emit()
 
     def myquery(self, *args):
+        self.proxy.layoutAboutToBeChanged.emit()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Загрузка...')
         self.status.repaint()
         instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
         self.model.update(instanse)
+        self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
             self.status.setStyleSheet("background-color : #D8D8D8")
@@ -393,7 +373,8 @@ class Table(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event):    # если приложение закрывают
         if conn:
             conn.close()    # закрываем соединение с БД перед закрытием
-        self.stop_resize_rows()
+        self.resize_worker.running = False
+        self.resize_worker.wait()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Закрываем...')
         self.status.repaint()
