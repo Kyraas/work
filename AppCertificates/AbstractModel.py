@@ -8,7 +8,6 @@ from PyQt6 import QtGui
 import sqlalchemy as db
 from orm import Certificate, conn
 from datecheck import half_year
-import operator
 
 headers = ['№', '№\nсертификата', 'Дата\nвнесения\nв реестр', 'Срок\nдействия\nсертификата', 'Наименование\nсредства (шифр)', 'Наименования документов,\nтребованиям которых\nсоответствует средство', 'Схема\nсертификации', 'Испытательная\nлаборатория', 'Орган по\nсертификации', 'Заявитель', 'Реквизиты заявителя\n(индекс, адрес, телефон)', 'Информация об\nокончании срока\nтехнической\nподдержки,\nполученная\nот заявителя']
 
@@ -62,6 +61,9 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
                     return QtGui.QColor('#e8eaed')  # светло-серый
             except ValueError:
                 pass
+
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return Qt.AlignmentFlag.AlignCenter
 
         if role == Qt.ItemDataRole.DisplayRole: # DisplayRole фактически принимает только строковые значения. В иных случаях необходимо форматировать данные в строку
             value = self.datatable[index.row()][index.column()]

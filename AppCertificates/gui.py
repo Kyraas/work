@@ -6,7 +6,7 @@
 import sys
 from PyQt6 import QtCore, QtGui
 from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QRect, QPoint
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
+from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate, QStyleOptionViewItem, QStyle
 from myWindow import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
@@ -21,17 +21,14 @@ from ctypes import windll
 myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
 windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid) # для отображения значка на панели
 
-class MyDelegate(QStyledItemDelegate):
-    def displayText(self, value, locale):
-        try:
-            value = datetime.strptime(value, "%Y-%m-%d").date()
-            value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
-        except ValueError:
-            pass
-        return value
-    def paint(self, painter, option, index):
-        option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter   # Выравнивание данных таблицы по центру
-        QStyledItemDelegate.paint(self, painter, option, index)
+# class MyDelegate(QStyledItemDelegate):
+#     def displayText(self, value, locale):
+#         try:
+#             value = datetime.strptime(value, "%Y-%m-%d").date()
+#             value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
+#         except ValueError:
+#             pass
+#         return value
 
 # Поток, получающий последние даты обновления БД (ФСТЭК и локального файла)
 class WorkerThreadLaunch(QThread):
@@ -66,12 +63,85 @@ class WorkerThreadUpdate(QThread):
         self.quit()
         
 
+class HighlightDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super(HighlightDelegate, self).__init__(parent)
+        self.doc = QtGui.QTextDocument(self)
+        self._filters = []
+
+    def paint(self, painter, option, index):
+        painter.save()
+        options = QStyleOptionViewItem(option)
+        self.initStyleOption(options, index)
+        self.doc.setPlainText(options.text)
+        self.apply_highlight()
+        options.text = ""
+        style = QApplication.style() if options.widget is None \
+            else options.widget.style()
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, options, painter)
+
+        ctx = QtGui.QAbstractTextDocumentLayout.PaintContext()
+        if option.state & QStyle.StateFlag.State_Selected:
+            ctx.palette.setColor(QtGui.QPalette.ColorRole.Text, option.palette.color(
+                QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.highlightedText))
+        else:
+            ctx.palette.setColor(QtGui.QPalette.ColorRole.Text, option.palette.color(
+                QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.ColorRole.Text))
+
+        textRect = style.subElementRect(
+            QStyle.SubElement.SE_ItemViewItemText, options)
+
+        if index.column() != 0:
+            textRect.adjust(5, 0, 0, 0)
+
+        the_constant = 4
+        margin = (option.rect.height() - options.fontMetrics.height()) // 2
+        margin = margin - the_constant
+        textRect.setTop(textRect.top() + margin)
+
+        painter.translate(textRect.topLeft())
+        painter.setClipRect(textRect.translated(-textRect.topLeft()))
+        self.doc.documentLayout().draw(painter, ctx)
+
+        painter.restore()
+
+    def apply_highlight(self):
+        cursor = QtGui.QTextCursor(self.doc)
+        cursor.beginEditBlock()
+        fmt = QtGui.QTextCharFormat()
+        fmt.setForeground(QtGui.QColor("red"))
+        for f in self.filters():
+            highlightCursor = QtGui.QTextCursor(self.doc)
+            while not highlightCursor.isNull() and not highlightCursor.atEnd():
+                highlightCursor = self.doc.find(f, highlightCursor)
+                if not highlightCursor.isNull():
+                    highlightCursor.mergeCharFormat(fmt)
+        cursor.endEditBlock()
+
+    def displayText(self, value, locale):
+        try:
+            value = datetime.strptime(value, "%Y-%m-%d").date()
+            value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
+        except ValueError:
+            pass
+        return value
+
+
+    @QtCore.pyqtSlot(list)
+    def setFilters(self, filters):
+        if self._filters == filters: return
+        self._filters = filters
+
+    def filters(self):
+        return self._filters
+
+
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi(self)  # Инициализация нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
-        self.showMaximized()
+        # self.showMaximized()
         self.menu.menuAction().setStatusTip("Создание файла")
         self.setWindowIcon(QtGui.QIcon('icon.ico'))
         self.status = self.statusBar()
@@ -100,14 +170,14 @@ class Table(QMainWindow, Ui_MainWindow):
         init_worker.start()
 
         # Делегат
-        self.dateDelegate = MyDelegate(self)
-        self.tableView.setItemDelegate(self.dateDelegate)
+        # self.dateDelegate = MyDelegate(self)
+        # self.tableView.setItemDelegate(self.dateDelegate)
+        self._delegate = HighlightDelegate(self)
+        self.tableView.setItemDelegate(self._delegate)
 
         # Представление
         self.tableView.setModel(self.proxy)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
-        for row in range(0, 11):
-            self.tableView.resizeRowToContents(row)
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.hideColumn(0)
@@ -122,6 +192,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.tableView.horizontalHeader().resizeSection(9, 300)
         self.tableView.horizontalHeader().resizeSection(10, 300)
         self.tableView.horizontalHeader().resizeSection(11, 103)
+        for row in range(0, 11):
+            self.tableView.resizeRowToContents(row)
         
         # Создаем группу фильтров
         self.filters = QButtonGroup(self)
@@ -143,10 +215,14 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_date.stateChanged.connect(self.white)
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
-        self.searchBar.textChanged.connect(self.search)
         self.proxy.layoutChanged.connect(self.visible_rows)
         self.tableView.verticalScrollBar().valueChanged.connect(self.visible_rows)
+        self.searchBar.textChanged.connect(self.search)
 
+    @QtCore.pyqtSlot(str)
+    def on_textChanged(self, text):
+        self._delegate.setFilters(list(set(text.split())))
+        self.tableView.viewport().update()
 
     # При наведении курсора на меню "Файл" строка состояния становилась пустой
     def event(self, e):
@@ -267,11 +343,12 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
         self.status.repaint()
 
-    def search(self):
+    def search(self, text):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
         self.status.repaint()
-        self.proxy.setFilterRegularExpression(self.searchBar.text())
+        self.proxy.setFilterRegularExpression(text)
+        self.on_textChanged(text)
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
