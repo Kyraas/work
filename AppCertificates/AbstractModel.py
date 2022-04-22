@@ -8,19 +8,18 @@ from PyQt6 import QtGui
 import sqlalchemy as db
 from orm import Certificate, conn
 from datecheck import half_year
+import operator
 
 headers = ['№', '№\nсертификата', 'Дата\nвнесения\nв реестр', 'Срок\nдействия\nсертификата', 'Наименование\nсредства (шифр)', 'Наименования документов,\nтребованиям которых\nсоответствует средство', 'Схема\nсертификации', 'Испытательная\nлаборатория', 'Орган по\nсертификации', 'Заявитель', 'Реквизиты заявителя\n(индекс, адрес, телефон)', 'Информация об\nокончании срока\nтехнической\nподдержки,\nполученная\nот заявителя']
 
 # QAbstractTableModel - это абстрактный базовый класс, означающий, что он не имеет реализаций для методов. Его нельзя использовать напрямую. На его основе необходимо создавать подкласс.
 
 class MyTableModel(QAbstractTableModel):    # создание модели данных на базе QAbstractTableModel
-    ROW_BATCH_COUNT = 15    # ограничение первоначального отображения и размер пакета для последующих обновлений представления
 
     def __init__(self):
         super(MyTableModel, self).__init__()
         results = conn.execute(db.select([Certificate])).fetchall()
         self.datatable = results
-        # self.rowsLoaded = MyTableModel.ROW_BATCH_COUNT  # инициализируется с помощью ROW_BATCH_COUNT и увеличивается, когда действия пользователя влекут за собой отображение большего количества строк в таблице.
         
     def update(self, dataIn):
         self.layoutAboutToBeChanged.emit()
@@ -77,29 +76,3 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
         if role != Qt.ItemDataRole.DisplayRole or orientation != Qt.Orientation.Horizontal:
             return QVariant()
         return headers[section]
-
-    # def rowCount(self, index = QModelIndex()):
-    #     if len(self.datatable) <= self.rowsLoaded:  # Если строк меньше ограничения (15 строк), то возвращаем кол-во строк
-    #         return len(self.datatable)
-    #     else:
-    #         return self.rowsLoaded  # если больше ограничения, то возвращаем это ограничение (15 строк)
-
-    # def canFetchMore(self, index = QModelIndex()):    # Возвращает True, если кол-во строк после запроса больше, чем кол-во загруженных строк
-    #     if len(self.datatable) > self.rowsLoaded:
-    #         return True
-    #     else:
-    #         return False
-
-    # def fetchMore(self, index = QModelIndex()):   # Если canFetchMore вернул True
-    #     remainder = len(self.datatable) - self.rowsLoaded   # Вычитаем из общего кол-ва строк уже загруженные строки, получаем оставшиеся еще не прогруженные строки
-    #     itemsToFetch = min(remainder, MyTableModel.ROW_BATCH_COUNT) # приравнивается к ограничению строк (15 строк) или к кол-ву оставшихся строк (если они меньше ограничения (remainder < 15))
-    #     self.layoutAboutToBeChanged.emit()
-    #     self.beginInsertRows(QModelIndex(), self.rowsLoaded, self.rowsLoaded + itemsToFetch - 1)    # начало загрузки строк
-    #     self.rowsLoaded += itemsToFetch # к уже отображенным в таблице строкам прибавляется еще 15 или меньше строк для отображения
-    #     self.endInsertRows()    # конец загрузки строк
-    #     self.layoutChanged.emit()
-
-    # def sort(self, col, order):
-    #     self.layoutAboutToBeChanged.emit()
-    #     self.datatable = sorted(self.datatable, key=operator.itemgetter(col), reverse=(order != Qt.SortOrder.AscendingOrder))
-    #     self.layoutChanged.emit()

@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 # https://stackoverflow.com/questions/64184256/qtableview-placeholder-text-before-table-appears
+# https://stackoverflow.com/questions/17604243/pyside-get-list-of-all-visible-rows-in-a-table
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
 from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal
+from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QRect, QPoint
 from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate
 from myWindow import Ui_MainWindow
 from AbstractModel import MyTableModel
@@ -31,23 +32,6 @@ class MyDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         option.displayAlignment = QtCore.Qt.AlignmentFlag.AlignCenter   # Выравнивание данных таблицы по центру
         QStyledItemDelegate.paint(self, painter, option, index)
-
-# Поток, меняющий размер высоты строк таблицы (поочередно)
-class WorkerThreadResize(QThread):
-    resize_rows = pyqtSignal(int)
-    def __init__(self, n, parent=None):
-        super(WorkerThreadResize, self).__init__(parent)
-        self.running = False
-        self.n = n
-    def run(self):
-        self.running = True
-        row = 0
-        while (row <= self.n) and (self.n > 0) and (self.running):
-            self.resize_rows.emit(row)
-            row += 1
-            if row % 20 == 0:
-                QtCore.QThread.msleep(500)
-
 
 # Поток, получающий последние даты обновления БД (ФСТЭК и локального файла)
 class WorkerThreadLaunch(QThread):
@@ -112,11 +96,8 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Получаем даты изменений баз данных (на сайте ФСТЭК и локальная БД)
         init_worker = WorkerThreadLaunch()
-        self.resize_worker = WorkerThreadResize(self.proxy.rowCount(), parent=None)
         init_worker.get_actual_dates.connect(self.set_update_date)
-        self.resize_worker.resize_rows.connect(self.resize_row)
         init_worker.start()
-        self.resize_worker.start()
 
         # Делегат
         self.dateDelegate = MyDelegate(self)
@@ -125,12 +106,14 @@ class Table(QMainWindow, Ui_MainWindow):
         # Представление
         self.tableView.setModel(self.proxy)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
+        for row in range(0, 11):
+            self.tableView.resizeRowToContents(row)
 
         # Приведение заголовков таблицы к желаемому виду
         self.tableView.hideColumn(0)
         self.tableView.horizontalHeader().resizeSection(1, 80)
         self.tableView.horizontalHeader().resizeSection(2, 70)
-        self.tableView.horizontalHeader().resizeSection(3, 105)
+        self.tableView.horizontalHeader().resizeSection(3, 110)
         self.tableView.horizontalHeader().resizeSection(4, 300)
         self.tableView.horizontalHeader().resizeSection(5, 200)
         self.tableView.horizontalHeader().resizeSection(6, 150)
@@ -161,7 +144,9 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
         self.searchBar.textChanged.connect(self.search)
-        self.proxy.layoutChanged.connect(self.start_resize)
+        self.proxy.layoutChanged.connect(self.visible_rows)
+        self.tableView.verticalScrollBar().valueChanged.connect(self.visible_rows)
+
 
     # При наведении курсора на меню "Файл" строка состояния становилась пустой
     def event(self, e):
@@ -170,13 +155,14 @@ class Table(QMainWindow, Ui_MainWindow):
                 e = QtGui.QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
         return super().event(e)
 
-    def start_resize(self):
-        self.resize_worker.n = self.proxy.rowCount()
-        self.resize_worker.start()
-
-    # Вместо встроенной функции resizeRowsToContents()
-    def resize_row(self, row):
-        self.tableView.resizeRowToContents(row)
+    # Изменение высоты только видимых строк
+    def visible_rows(self):
+        viewport_rect = QRect(QPoint(0, 0), self.tableView.viewport().size())
+        for row in range(0, self.proxy.rowCount() + 1):
+            rect = self.tableView.visualRect(self.proxy.index(row, 7))  # выбираем любую видимую колонку
+            is_visible = viewport_rect.intersects(rect)
+            if is_visible:
+                self.tableView.resizeRowToContents(row)
 
     # Отображение полученных дат в приложении
     def set_update_date(self, last_date, actual_date):
@@ -282,7 +268,6 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.repaint()
 
     def search(self):
-        self.proxy.layoutAboutToBeChanged.emit()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
         self.status.repaint()
@@ -354,13 +339,11 @@ class Table(QMainWindow, Ui_MainWindow):
         self.myquery()
 
     def myquery(self, *args):
-        self.proxy.layoutAboutToBeChanged.emit()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Загрузка...')
         self.status.repaint()
         instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
         self.model.update(instanse)
-        self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
             self.status.setStyleSheet("background-color : #D8D8D8")
@@ -373,8 +356,6 @@ class Table(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event):    # если приложение закрывают
         if conn:
             conn.close()    # закрываем соединение с БД перед закрытием
-        self.resize_worker.running = False
-        self.resize_worker.wait()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Закрываем...')
         self.status.repaint()
