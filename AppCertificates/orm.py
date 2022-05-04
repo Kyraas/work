@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
+import sqlalchemy as db
 from sqlalchemy import Column, Integer, String, Date, create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.sqlite import insert
-import sqlalchemy as db
 
 Base = declarative_base()
-engine = create_engine('sqlite:///Database.db', connect_args={'check_same_thread': False})  # Нужно для исключения конфликта потоков GUI и SQLite
+engine = create_engine('sqlite:///Database.db',
+                        connect_args={'check_same_thread': False})  # Нужно для исключения конфликта потоков GUI и SQLite
 conn = engine.connect()
 Session = scoped_session(sessionmaker())
 Session.configure(bind=engine, autoflush=False, expire_on_commit=False)
@@ -26,7 +27,8 @@ class Certificate(Base):
     requisites = Column(String, nullable=False)
     support = Column(String)
 
-    def __init__(self, id, date_start, date_end, name, docs, scheme, lab, certification, applicant, requisites, support):
+    def __init__(self, id, date_start, date_end, name, docs, scheme,
+                 lab, certification, applicant, requisites, support):
         self.id = id
         self.date_start = date_start
         self.date_end = date_end
@@ -40,7 +42,9 @@ class Certificate(Base):
         self.support = support
 
     def __repr__(self):
-        return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % (self.id, self.date_start, self.date_end, self.name, self.docs, self.scheme, self.lab, self.certification, self.applicant, self.requisites, self.support)
+        return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % (self.id, self.date_start, self.date_end, self.name,
+                                                     self.docs, self.scheme, self.lab, self.certification,
+                                                     self.applicant, self.requisites, self.support)
 
     def upsert(data):
         stmt = insert(Certificate).values(data)

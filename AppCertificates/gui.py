@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 # https://stackoverflow.com/questions/64184256/qtableview-placeholder-text-before-table-appears
 # https://stackoverflow.com/questions/17604243/pyside-get-list-of-all-visible-rows-in-a-table
+# https://stackoverflow.com/questions/53353450/how-to-highlight-a-words-in-qtablewidget-from-a-searchlist
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
-from PyQt6 import QtCore, QtGui
-from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QRect, QPoint
-from PyQt6.QtWidgets import QApplication, QMainWindow, QButtonGroup, QProgressBar, QMessageBox, QFileDialog, QStyledItemDelegate, QStyleOptionViewItem, QStyle
+import sqlalchemy as db
+from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QRect, QPoint, Qt, QTimer, pyqtSlot
+from PyQt6.QtGui import (QTextOption, QTextDocument, QAbstractTextDocumentLayout,
+                        QPalette, QIcon, QTextCursor, QTextCharFormat, QColor, QStatusTipEvent)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QButtonGroup,
+                            QProgressBar, QMessageBox, QFileDialog,
+                            QStyledItemDelegate, QStyleOptionViewItem, QStyle)
 from myWindow import Ui_MainWindow
 from AbstractModel import MyTableModel
 from orm import Certificate as tbl, conn
-import sqlalchemy as db
 from sqlalchemy.sql import func
 from siteparser import parse, update_table, count_rows, check_database
 from datecheck import get_update_date, half_year
@@ -20,15 +24,6 @@ from ctypes import windll
 
 myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
 windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid) # для отображения значка на панели
-
-# class MyDelegate(QStyledItemDelegate):
-#     def displayText(self, value, locale):
-#         try:
-#             value = datetime.strptime(value, "%Y-%m-%d").date()
-#             value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
-#         except ValueError:
-#             pass
-#         return value
 
 # Поток, получающий последние даты обновления БД (ФСТЭК и локального файла)
 class WorkerThreadLaunch(QThread):
@@ -41,7 +36,8 @@ class WorkerThreadLaunch(QThread):
         self.get_actual_dates.emit(local_update, last_update)
         self.quit()
 
-# Поток, обновляющий БД и progresbar
+
+# Поток, обновляющий БД и progressbar
 class WorkerThreadUpdate(QThread):
     start_update = pyqtSignal(list)
     cancel_update = pyqtSignal()
@@ -61,73 +57,80 @@ class WorkerThreadUpdate(QThread):
         else:
             self.cancel_update.emit()
         self.quit()
-        
 
+
+# Подсвечивает искомый текст, изменение цвета выделенных строк
 class HighlightDelegate(QStyledItemDelegate):
-    def __init__(self, parent=None):
+    def __init__(self, column_width, parent=None):
         super(HighlightDelegate, self).__init__(parent)
-        self.doc = QtGui.QTextDocument(self)
+        self.column_width = column_width
         self._filters = []
 
     def paint(self, painter, option, index):
         painter.save()
         options = QStyleOptionViewItem(option)
+        textOption = QTextOption()
+        textOption.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.initStyleOption(options, index)
-        self.doc.setPlainText(options.text)
+        self.doc = QTextDocument(options.text)    # создаем объект для каждой ячейки таблицы
+        self.doc.setDefaultTextOption(textOption)
+
+        for col, width in enumerate(self.column_width, start=1):    # меняем ширину текста в каждом QTextDocument()
+            if index.column() == col:
+                self.doc.setTextWidth(width)
+
         self.apply_highlight()
-        options.text = ""
+        options.text = ""   # очищаем переменную
         style = QApplication.style() if options.widget is None \
             else options.widget.style()
         style.drawControl(QStyle.ControlElement.CE_ItemViewItem, options, painter)
 
-        ctx = QtGui.QAbstractTextDocumentLayout.PaintContext()
+        # Цвет при выделении строки
+        ctx = QAbstractTextDocumentLayout.PaintContext()
         if option.state & QStyle.StateFlag.State_Selected:
-            ctx.palette.setColor(QtGui.QPalette.ColorRole.Text, option.palette.color(
-                QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.highlightedText))
+            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
+                QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText))
         else:
-            ctx.palette.setColor(QtGui.QPalette.ColorRole.Text, option.palette.color(
-                QtGui.QPalette.ColorGroup.Active, QtGui.QPalette.ColorRole.Text))
+            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
+                QPalette.ColorGroup.Active, QPalette.ColorRole.Text))
 
         textRect = style.subElementRect(
             QStyle.SubElement.SE_ItemViewItemText, options)
 
         if index.column() != 0:
-            textRect.adjust(5, 0, 0, 0)
+            textRect.adjust(0, -4, 0, 0)
 
-        the_constant = 4
-        margin = (option.rect.height() - options.fontMetrics.height()) // 2
-        margin = margin - the_constant
-        textRect.setTop(textRect.top() + margin)
-
-        painter.translate(textRect.topLeft())
+        painter.translate(textRect.topLeft())   # Корректное распределение текста по ячейкам таблицы
         painter.setClipRect(textRect.translated(-textRect.topLeft()))
         self.doc.documentLayout().draw(painter, ctx)
-
         painter.restore()
 
+    # Подсветка искомого текста
     def apply_highlight(self):
-        cursor = QtGui.QTextCursor(self.doc)
+        cursor = QTextCursor(self.doc)
         cursor.beginEditBlock()
-        fmt = QtGui.QTextCharFormat()
-        fmt.setForeground(QtGui.QColor("red"))
+        fmt = QTextCharFormat()
+        fmt.setForeground(QColor("red"))
+        fmt.setBackground(QColor("yellow"))
         for f in self.filters():
-            highlightCursor = QtGui.QTextCursor(self.doc)
+            highlightCursor = QTextCursor(self.doc)
             while not highlightCursor.isNull() and not highlightCursor.atEnd():
                 highlightCursor = self.doc.find(f, highlightCursor)
                 if not highlightCursor.isNull():
                     highlightCursor.mergeCharFormat(fmt)
         cursor.endEditBlock()
 
+    # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
     def displayText(self, value, locale):
         try:
             value = datetime.strptime(value, "%Y-%m-%d").date()
-            value = value.strftime("%d.%m.%Y")  # Изменение формата даты из ГГГГ-ММ-ДД в ДД.ММ.ГГГГ, не препятствуя сортировке
+            value = value.strftime("%d.%m.%Y")
         except ValueError:
             pass
         return value
 
-
-    @QtCore.pyqtSlot(list)
+    @pyqtSlot(list)
     def setFilters(self, filters):
         if self._filters == filters: return
         self._filters = filters
@@ -141,10 +144,11 @@ class Table(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.setupUi(self)  # Инициализация нашего дизайна
         self.setWindowTitle("Таблица сертификатов")
-        # self.showMaximized()
+        self.showMaximized()
         self.menu.menuAction().setStatusTip("Создание файла")
-        self.setWindowIcon(QtGui.QIcon('icon.ico'))
+        self.setWindowIcon(QIcon('icon.ico'))
         self.status = self.statusBar()
+        column_width = [80, 70, 110, 300, 200, 150, 150, 210, 300, 300, 103]
 
         # Модель
         self.model = MyTableModel()
@@ -154,7 +158,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.setSourceModel(self.model)
         self.proxy.setDynamicSortFilter(True)
         self.proxy.setFilterKeyColumn(-1)   # Поиск по всей таблице (все колонки)
-        self.proxy.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
+        self.proxy.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
 
         # Считаем строки при запуске программы
         if self.model.rowCount() == 0:
@@ -170,30 +174,18 @@ class Table(QMainWindow, Ui_MainWindow):
         init_worker.start()
 
         # Делегат
-        # self.dateDelegate = MyDelegate(self)
-        # self.tableView.setItemDelegate(self.dateDelegate)
-        self._delegate = HighlightDelegate(self)
+        self._delegate = HighlightDelegate(column_width)
         self.tableView.setItemDelegate(self._delegate)
 
         # Представление
         self.tableView.setModel(self.proxy)
         self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
 
-        # Приведение заголовков таблицы к желаемому виду
+        # Приведение заголовков и первых видимых строк таблицы к желаемому виду
         self.tableView.hideColumn(0)
-        self.tableView.horizontalHeader().resizeSection(1, 80)
-        self.tableView.horizontalHeader().resizeSection(2, 70)
-        self.tableView.horizontalHeader().resizeSection(3, 110)
-        self.tableView.horizontalHeader().resizeSection(4, 300)
-        self.tableView.horizontalHeader().resizeSection(5, 200)
-        self.tableView.horizontalHeader().resizeSection(6, 150)
-        self.tableView.horizontalHeader().resizeSection(7, 150)
-        self.tableView.horizontalHeader().resizeSection(8, 210)
-        self.tableView.horizontalHeader().resizeSection(9, 300)
-        self.tableView.horizontalHeader().resizeSection(10, 300)
-        self.tableView.horizontalHeader().resizeSection(11, 103)
-        for row in range(0, 11):
-            self.tableView.resizeRowToContents(row)
+        for col, width in enumerate(column_width, start=1):
+            self.tableView.horizontalHeader().resizeSection(col, width)
+        QTimer.singleShot(100, self.resize_visible_rows)    # Выполнение функции с задержкой
         
         # Создаем группу фильтров
         self.filters = QButtonGroup(self)
@@ -215,11 +207,11 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_date.stateChanged.connect(self.white)
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
-        self.proxy.layoutChanged.connect(self.visible_rows)
-        self.tableView.verticalScrollBar().valueChanged.connect(self.visible_rows)
+        self.proxy.layoutChanged.connect(self.resize_visible_rows)
+        self.tableView.verticalScrollBar().valueChanged.connect(self.resize_visible_rows)
         self.searchBar.textChanged.connect(self.search)
 
-    @QtCore.pyqtSlot(str)
+    @pyqtSlot(str)
     def on_textChanged(self, text):
         self._delegate.setFilters(list(set(text.split())))
         self.tableView.viewport().update()
@@ -228,17 +220,19 @@ class Table(QMainWindow, Ui_MainWindow):
     def event(self, e):
         if e.type() == 112: # событие изменения строки состояния (в нижнем левом углу)
             if e.tip() == '':
-                e = QtGui.QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
+                e = QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
         return super().event(e)
 
     # Изменение высоты только видимых строк
-    def visible_rows(self):
+    def resize_visible_rows(self):
         viewport_rect = QRect(QPoint(0, 0), self.tableView.viewport().size())
         for row in range(0, self.proxy.rowCount() + 1):
-            rect = self.tableView.visualRect(self.proxy.index(row, 7))  # выбираем любую видимую колонку
-            is_visible = viewport_rect.intersects(rect)
-            if is_visible:
-                self.tableView.resizeRowToContents(row)
+            rect = self.tableView.visualRect(self.proxy.index(row, 7))  # выбираем любую видимую колонку (костыль!)
+            if viewport_rect.intersects(rect):  # если видимые строки
+                for _ in range(0, 20):
+                    self.tableView.resizeRowToContents(row)
+                    row += 1
+                break
 
     # Отображение полученных дат в приложении
     def set_update_date(self, last_date, actual_date):
@@ -343,12 +337,14 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.setStyleSheet("background-color : #D8D8D8") # серый
         self.status.repaint()
 
+    # Поиск по таблице
     def search(self, text):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Поиск...')
         self.status.repaint()
         self.proxy.setFilterRegularExpression(text)
         self.on_textChanged(text)
+
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
@@ -359,31 +355,37 @@ class Table(QMainWindow, Ui_MainWindow):
             self.status.showMessage('По данному запросу не найдено.')
         self.status.repaint()
 
-    def red(self):  # Сертификат и поддержка не действительны
+    # Фильтры:
+    # 1. Сертификат и поддержка не действительны
+    def red(self):
         red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
         if self.radioButton_red.isChecked():
             self.myquery(red_filter)
             self.reset_checkBoxes()
 
-    def pink(self): # Поддержка не действительна
+    # 2. Поддержка не действительна
+    def pink(self):
         pink_filter = (tbl.support <= func.current_date()) & (tbl.date_end > func.current_date()) & (tbl.support != '')
         if self.radioButton_pink.isChecked():
             self.myquery(pink_filter)
             self.reset_checkBoxes()
 
-    def yellow(self):   # Сертификат не действителен
+    # 3. Сертификат не действителен
+    def yellow(self):
         yellow_filter = (tbl.date_end <= func.current_date()) & (tbl.date_end != '#Н/Д')
         if self.radioButton_yellow.isChecked():
             self.myquery(yellow_filter)
             self.reset_checkBoxes()
             
-    def gray(self): # Сертификат истечёт менее, чем через полгода
+    # 4. Сертификат истечёт менее, чем через полгода (почему-то пропадает последний столбец)
+    def gray(self):
         gray_filter = (tbl.date_end <= half_year()) & (tbl.date_end > func.current_date())
         if self.radioButton_gray.isChecked():
             self.myquery(gray_filter)
             self.reset_checkBoxes()
 
-    def white(self):    # Сертификат и поддержка действительны
+    # 5. Сертификат и поддержка действительны
+    def white(self):
         white_filter = (tbl.support > func.current_date()) & (tbl.date_end > func.current_date())
         if self.radioButton_white.isChecked():
             self.checkBox_date.setEnabled(True)
@@ -394,6 +396,7 @@ class Table(QMainWindow, Ui_MainWindow):
                 white_filter = white_filter + ((tbl.date_end > func.current_date()) & (tbl.support == ''))
             self.myquery(white_filter)
 
+    # Сброс флагов
     def reset_checkBoxes(self):
         if self.checkBox_date.isEnabled:    # если хотя бы один флаг включён
             if self.checkBox_date.isChecked:    # убираем флаги, если они стоят
@@ -403,7 +406,8 @@ class Table(QMainWindow, Ui_MainWindow):
             self.checkBox_date.setEnabled(False)    # отключаем флаги
             self.checkBox_sup.setEnabled(False)
 
-    def reset(self):    # Сброс фильтров
+    # Сброс фильтров
+    def reset(self):
         self.reset_checkBoxes()
         self.filters.setExclusive(False)    # делаем переключатели уникальными и отдельно выключаем каждый
         self.radioButton_red.setChecked(False)
@@ -415,6 +419,7 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.sort(-1)
         self.myquery()
 
+    # SQL-запрос к SQLite базе данных
     def myquery(self, *args):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Загрузка...')
@@ -430,12 +435,14 @@ class Table(QMainWindow, Ui_MainWindow):
             self.status.showMessage('По данному запросу не найдено.')
         self.status.repaint()
 
-    def closeEvent(self, event):    # если приложение закрывают
+    # Событие закрытия приложения
+    def closeEvent(self, event):
         if conn:
             conn.close()    # закрываем соединение с БД перед закрытием
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Закрываем...')
         self.status.repaint()
+
 
 app = QApplication(sys.argv)
 win = Table()

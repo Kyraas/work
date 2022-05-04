@@ -2,9 +2,10 @@
 # https://stackoverflow.com/questions/17697352/pyqt-implement-a-qabstracttablemodel-for-display-in-qtableview
 # https://www.pythonguis.com/tutorials/qtableview-modelviews-numpy-pandas/
 # https://doc.qt.io/qtforpython-5/overviews/model-view-programming.html?highlight=layoutabouttobechanged
+
 from datetime import datetime, date
 from PyQt6.QtCore import QAbstractTableModel, Qt, QVariant, QModelIndex
-from PyQt6 import QtGui
+from PyQt6.QtGui import QColor
 import sqlalchemy as db
 from orm import Certificate, conn
 from datecheck import half_year
@@ -44,26 +45,23 @@ class MyTableModel(QAbstractTableModel):    # создание модели да
 
             try:
                 if (datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date) and (datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date):    # Если и сертификат, и подержка не действительны
-                    return QtGui.QColor('#ff7f7f')  # красный
+                    return QColor('#ff7f7f')  # красный
             except ValueError:
                 pass
 
             try:
                 if datetime.date(datetime.strptime(sup, "%Y-%m-%d")) < now_date:    # Если поддержка не действительна
-                    return QtGui.QColor('#ff9fc3')  # розовый
+                    return QColor('#ff9fc3')  # розовый
             except ValueError:
                 pass
 
             try:
                 if datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < now_date:    # Если сертификат не действителен
-                    return QtGui.QColor('#ffecb7')  # желтый
+                    return QColor('#ffecb7')  # желтый
                 elif datetime.date(datetime.strptime(date_end, "%Y-%m-%d")) < half_year(): # Если сертификат истечет через полгода
-                    return QtGui.QColor('#e8eaed')  # светло-серый
+                    return QColor('#e8eaed')  # светло-серый
             except ValueError:
                 pass
-
-        if role == Qt.ItemDataRole.TextAlignmentRole:
-            return Qt.AlignmentFlag.AlignCenter
 
         if role == Qt.ItemDataRole.DisplayRole: # DisplayRole фактически принимает только строковые значения. В иных случаях необходимо форматировать данные в строку
             value = self.datatable[index.row()][index.column()]

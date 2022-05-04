@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 # антипаттерн UPSERT https://habr.com/ru/company/otus/blog/547094/
-import requests  # Получение HTTP-запросов, удобнее и стабильнее в работе, чем встроенная библиотека urllib
+from requests import get, exceptions # Получение HTTP-запросов, удобнее и стабильнее в работе, чем встроенная библиотека urllib
 from bs4 import BeautifulSoup  # Парсинг полученного контента
-import sqlite3  # Импортируем библиотеку, соответствующую типу нашей базы данных
+from sqlite3 import Error  # Импортируем библиотеку, соответствующую типу нашей базы данных
 from datetime import datetime
 from orm import Certificate as tbl, Session, get_id, delete_id
-sqlite3.paramstyle = "named"
 
 month = {
     "января": "01",
@@ -33,9 +32,9 @@ HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 # params - дополнительные параметры (опционально), например номер страницы
 def get_html(url, params=None):
     try:
-        r = requests.get(url, headers=HEADERS, params=params)
+        r = get(url, headers=HEADERS, params=params)
         return r
-    except requests.exceptions.ConnectionError:
+    except exceptions.ConnectionError:
         return False
 
 def get_content(html):
@@ -118,7 +117,7 @@ def update_table(data):
             tbl.upsert(i)
             k += 1
             yield(k)
-    except sqlite3.Error as error:
+    except Error as error:
         print("Ошибка при работе с SQLite: ", error)
     finally:
         Session.commit()   # сохраняем изменения в бд
