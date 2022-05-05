@@ -9,6 +9,7 @@
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtWidgets import QTableView
 
+
 class MyTableView(QTableView):
     def paintEvent(self, event):
         super().paintEvent(event)

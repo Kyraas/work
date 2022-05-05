@@ -1,23 +1,41 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
+
 from xlsxwriter import Workbook, exceptions
 from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.shared import Pt, Cm
-from datetime import datetime
 from PyQt6.QtWidgets import QMessageBox
 
-headers = [ '№ п/п', 'Номер сертификата', 'Дата выдачи', 'Срок действия', 'Наименование средства (шифр)', 'Наименования документов, требованиям которых соответствует средство',\
-            'Схема сертификации', 'Испытательная лаборатория', 'Орган по сертификации', 'Заявитель', 'Реквизиты заявителя (индекс, адрес, телефон)',\
-            'Информация об окончании срока технической поддержки, полученная от заявителя']
+headers = [ '№ п/п', 'Номер сертификата', 'Дата выдачи', 
+            'Срок действия', 'Наименование средства (шифр)',
+            'Наименования документов, \
+            требованиям которых соответствует средство',
+            'Схема сертификации', 'Испытательная лаборатория',
+            'Орган по сертификации', 'Заявитель',
+            'Реквизиты заявителя (индекс, адрес, телефон)',
+            'Информация об окончании срока технической поддержки, \
+            полученная от заявителя'
+            ]
+
 
 def save_excel_file(self, fileName, table):
-    # Создание excel-файла с указанным названием и форматирование колонок и строки
+
+    # Создание excel-файла с указанным названием
+    # и форматирование колонок и строки.
     workbook = Workbook(fileName)
     worksheet = workbook.add_worksheet()
-    text_wrap = workbook.add_format({'text_wrap':True, 'valign':'vcenter', 'align':'center'})
-    head = workbook.add_format({'bold':True, 'valign':'vcenter', 'align':'center', 'text_wrap':True})
+    text_wrap = workbook.add_format({'text_wrap':True,
+                                    'valign':'vcenter',
+                                    'align':'center'})
+
+    head = workbook.add_format({'bold':True,
+                                'valign':'vcenter',
+                                'align':'center',
+                                'text_wrap':True})
+
     worksheet.set_column(0, 10, None, text_wrap)
     worksheet.set_column(0, 0, 13)
     worksheet.set_column(1, 1, 11)
@@ -30,23 +48,30 @@ def save_excel_file(self, fileName, table):
     worksheet.set_row(0, None, head)
 
     # Запись заголовков в строку 0
+    # Игнорируем первый заголовок, т.к. он для rowid
     for i in range(11):
-        worksheet.write(0, i, headers[i+1]) # игнорируем первый заголовок, т.к. он для rowid
+        worksheet.write(0, i, headers[i+1]) 
 
     # Запись данных, начиная со строки 1
     for r, row in enumerate(table, start=1):
         for c, cell in enumerate(row):
             try:
-                date = datetime.strptime(cell, "%Y-%m-%d").date().strftime("%d.%m.%Y")
+                date = datetime.strptime(
+                    cell, "%Y-%m-%d").date().strftime("%d.%m.%Y")
                 cell = str(date)
             except:
                 pass
-            worksheet.write(r, c, cell) # запись данных в клетку (строка, колонка, данные)
+            # Запись данных в клетку (строка, колонка, данные)
+            worksheet.write(r, c, cell)
     try:
         workbook.close()
     except exceptions.FileCreateError:
-        QMessageBox.warning(self, "Ошибка доступа", f"Файл '{fileName}' не может быть перезаписан, так как уже открыт.\nЗакройте файл и повторите попытку. ")
+        QMessageBox.warning(self, "Ошибка доступа",
+                            f"Файл '{fileName}' не может быть \
+                            перезаписан, так как уже открыт.\n\
+                            Закройте файл и повторите попытку. ")
         return True
+
 
 def save_word_file(self, fileName, data):
 
@@ -72,14 +97,18 @@ def save_word_file(self, fileName, data):
 
     table = doc.add_table(rows = len(data), cols = 12)
     t_cells = table._cells
-    table.style = 'Table Grid'  # без этого таблица будет с невидимыми границами
+
+    # Без этого таблица будет с невидимыми границами
+    table.style = 'Table Grid'
 
     # Добавление остальных данных
     for i in range(len(data)):
         row_cells = t_cells[i*12:(i+1)*12]
         for j in range(12):
             try:
-                date = datetime.strptime(data[i][j], "%Y-%m-%d").date().strftime("%d.%m.%Y")
+                date = datetime.strptime(
+                    data[i][j],"%Y-%m-%d").date().strftime("%d.%m.%Y")
+
                 data[i][j] = str(date)
             except:
                 pass
@@ -101,5 +130,8 @@ def save_word_file(self, fileName, data):
     try:
         doc.save(fileName)
     except PermissionError:
-        QMessageBox.warning(self, "Ошибка доступа", f"Файл '{fileName}' не может быть перезаписан, так как уже открыт.\nЗакройте файл и повторите попытку. ")
+        QMessageBox.warning(self, "Ошибка доступа",
+                            f"Файл '{fileName}' не может быть \
+                            перезаписан, так как уже открыт.\n\
+                            Закройте файл и повторите попытку. ")
         return True

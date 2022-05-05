@@ -6,11 +6,16 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.sqlite import insert
 
 Base = declarative_base()
+
+# 'check_same_thread' нужен для
+# исключения конфликта потоков GUI и SQLite.
 engine = create_engine('sqlite:///Database.db',
-                        connect_args={'check_same_thread': False})  # Нужно для исключения конфликта потоков GUI и SQLite
+                        connect_args={'check_same_thread': False})
+
 conn = engine.connect()
 Session = scoped_session(sessionmaker())
 Session.configure(bind=engine, autoflush=False, expire_on_commit=False)
+
 
 class Certificate(Base):
     __tablename__ = 'certificates'
@@ -42,9 +47,10 @@ class Certificate(Base):
         self.support = support
 
     def __repr__(self):
-        return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % (self.id, self.date_start, self.date_end, self.name,
-                                                     self.docs, self.scheme, self.lab, self.certification,
-                                                     self.applicant, self.requisites, self.support)
+        return "%r,%r,%r,%r,%r,%r,%r,%r,%r,%r,%r" % \
+            (self.id, self.date_start, self.date_end, self.name,
+            self.docs, self.scheme, self.lab, self.certification,
+            self.applicant, self.requisites, self.support)
 
     def upsert(data):
         stmt = insert(Certificate).values(data)
@@ -54,11 +60,14 @@ class Certificate(Base):
         )
         conn.execute(stmt)
 
+
 def get_id():
     return conn.execute(db.select(Certificate.id)).fetchall()
+
 
 def delete_id(list_id):
     for id in list_id:
         conn.execute(db.delete(Certificate).where(Certificate.id == id))
+
 
 Base.metadata.create_all(engine)

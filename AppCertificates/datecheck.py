@@ -17,7 +17,7 @@ month = {
     "Oct": "10",
     "Nov": "11",
     "Dec": "12",
-}
+    }
 
 def half_year():
     cur_date = datetime.now()
@@ -27,18 +27,28 @@ def half_year():
     day = min(cur_date.day, monthrange(year, month)[1])
     return date(year, month, day)
 
+
 def get_update_date():
-    database_path = path.abspath("Database.db")   # получаем абсолютный путь
+
+    # Получаем абсолютный путь
+    database_path = path.abspath("Database.db")
     try:
-        c_time = path.getmtime(database_path) # получаем дату последнего обновления файла Database.db
-        date = ctime(c_time)   # конвертируем секунды в дату
-        textdate = str(date).split()    # конвертируем в список
+        # Получаем дату последнего обновления файла Database.db
+        c_time = path.getmtime(database_path)
+
+        # Конвертируем секунды в дату
+        date = ctime(c_time)
+
+        # Конвертируем в список
+        textdate = str(date).split()
         m = month.get(textdate[1])
         s = textdate[3]
         new_date = ""
-        new_date = "Актуальность текущей базы: " + textdate[2] + "." + m + "." + textdate[4] + " г. " + s[:-3]
+        new_date = "Актуальность текущей базы: " + textdate[2] + \
+            "." + m + "." + textdate[4] + " г. " + s[:-3]
     except OSError:
-        print(f"По указанному пути: {database_path} файл не существует, либо был перемещён.")
+        print(f"По указанному пути: {database_path} \
+                файл не существует, либо был перемещён.")
         new_date = "База данных не найдена."
     finally:
         return new_date

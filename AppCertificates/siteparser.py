@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
 # антипаттерн UPSERT https://habr.com/ru/company/otus/blog/547094/
-from requests import get, exceptions # Получение HTTP-запросов, удобнее и стабильнее в работе, чем встроенная библиотека urllib
-from bs4 import BeautifulSoup  # Парсинг полученного контента
-from sqlite3 import Error  # Импортируем библиотеку, соответствующую типу нашей базы данных
+
 from datetime import datetime
+from sqlite3 import Error   # Импортируем библиотеку,
+                            # соответствующую типу нашей базы данных.
+
+from bs4 import BeautifulSoup  # Парсинг полученного контента
+from requests import get, exceptions    # Получение HTTP-запросов.
+                                        # Удобнее и стабильнее в работе,
+                                        # чем встроенная библиотека urllib.
+
 from orm import Certificate as tbl, Session, get_id, delete_id
 
 month = {
@@ -19,23 +25,28 @@ month = {
     "октября": "10",
     "ноября": "11",
     "декабря": "12",
-}
+    }
 
 # Константы
-URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
+URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/\
+        dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
   
-# Заголовки нужны для того, чтобы сервер не посчитал нас за ботов и не заблокировал   
-HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                         "Chrome/96.0.4664.110 Safari/537.36 OPR/82.0.4227.43", "accept": "*/*"}
+# Заголовки нужны для того, чтобы сервер
+# не посчитал нас за ботов и не заблокировал.
+HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
+            AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/96.0.4664.110 Safari/537.36 OPR/82.0.4227.43",
+            "accept": "*/*"}
 
-
-# params - дополнительные параметры (опционально), например номер страницы
+# params - дополнительные параметры (опционально),
+# например номер страницы.
 def get_html(url, params=None):
     try:
         r = get(url, headers=HEADERS, params=params)
         return r
     except exceptions.ConnectionError:
         return False
+
 
 def get_content(html):
     headers = {
@@ -50,29 +61,43 @@ def get_content(html):
         8:'applicant',
         9:'requisites',
         10:'support'
-    }
+        }
+
     item = {}
     cells, data = [], []
     
-    soup = BeautifulSoup(html, "html.parser")  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
-    table = soup.find("table", id="at_227")  # находим нужную нам таблицу
+    soup = BeautifulSoup(html, "html.parser")   # Второй параметр это тип документа,
+                                                # с которым мы работаем.
+                                                # (опциональный,
+                                                # но использование желательно)
+    table = soup.find("table", id="at_227") # Находим нужную нам таблицу.
 
-    for row in table.find("tbody").find_all("tr"):  # находим все строки в таблице (их 1914 шт.)
+    for row in table.find("tbody").find_all("tr"):  # Находим все строки
+                                                    # в таблице.
         cell = []
-        for td in row.find_all("td"):  # находим ячейки в каждой строке
-            cell.append(td.text.replace("\xa0", " "))  # вычленяем текст из каждой ячейки строки
-        if cell:  # если он есть, то добавляем его в список cells
-            cells.append(cell)  # данный список содержит данные всех ячеек таблицы
+        for td in row.find_all("td"):   # Находим ячейки в каждой строке.
+            cell.append(td.text.replace("\xa0", " "))   # Вычленяем текст
+                                                        # из каждой ячейки строки.
+        if cell:    # Если он есть, то добавляем его в список cells.
+            cells.append(cell)  # Данный список содержит данные
+                                # всех ячеек таблицы.
 
     for row in cells:  # цикл по строкам в cells
         item = {}
         for i in headers:  # цикл по заголовкам
-            item[headers[i]] = row[i]  # каждому заголовку сопостовляем ячейку из строки
-        data.append(item)  # полученный item добавляем в общий список данных data
+            item[headers[i]] = row[i]   # Каждому заголовку сопостовляем
+                                        # ячейку из строки.
+        data.append(item)   # Полученный item добавляем в
+                            # общий список данных data.
     return data
 
+
 def get_update_date(html):
-    soup = BeautifulSoup(html, "html.parser")  # второй параметр это тип документа, с которым мы работаем (опциональный, но использование желательно)
+    soup = BeautifulSoup(html, "html.parser")   # Второй параметр это
+                                                # тип документа,
+                                                # с которым мы работаем.
+                                                # (опциональный,
+                                                # но использование желательно)
     label = soup.find("dd", class_="modified").text.strip()
     text = label.replace("Обновлено: ", "")
     text = text.split()
@@ -87,7 +112,8 @@ def get_update_date(html):
 def parse(flag=False):
     html = get_html(URL)
     if html != False:
-        if html.status_code == 200:  # Код ответа об успешном статусе "The HTTP 200 OK"
+        if html.status_code == 200: # Код ответа об успешном статусе
+                                    # "The HTTP 200 OK"
             if flag:
                 return get_update_date(html.text)
             else:
@@ -97,21 +123,28 @@ def parse(flag=False):
     else:
         return False
 
+
 def count_rows(data):
     return(len(data))
 
+
 def update_table(data):
     k = 0
+
+    # Изменяем формат даты на YYYY-MM-DD
+    # для дальнейшей обработки в SQLite.
     try:
-        # изменяем формат даты на YYYY-MM-DD для дальнейшей обработки в SQLite
         for i in data:
-            i['date_start'] = datetime.strptime(i['date_start'], "%d.%m.%Y").date()
+            i['date_start'] = datetime.strptime(i['date_start'],
+                                                "%d.%m.%Y").date()
             try:
-                i['date_end'] = datetime.strptime(i['date_end'], "%d.%m.%Y").date()
+                i['date_end'] = datetime.strptime(i['date_end'],
+                                                "%d.%m.%Y").date()
             except ValueError:
                 pass
             try:
-                i['support'] = datetime.strptime(i['support'], "%d.%m.%Y").date()
+                i['support'] = datetime.strptime(i['support'],
+                                                "%d.%m.%Y").date()
             except ValueError:
                 pass
             tbl.upsert(i)
@@ -120,18 +153,21 @@ def update_table(data):
     except Error as error:
         print("Ошибка при работе с SQLite: ", error)
     finally:
-        Session.commit()   # сохраняем изменения в бд
+        Session.commit()    # Сохраняем изменения в БД.
 
+# Сравниваем id в новых и старых данных.
 def check_database(data):
     old_id = []
     new_id = []
+    old_data = get_id()
+
     for i in data:
         new_id.append(i['id'])
 
-    old_data = get_id()
     for i in old_data:
         d = ''.join(i)
         old_id.append(d)
+
     result = list(set(old_id) - set(new_id))
     delete_id(result)
     Session.commit()

@@ -5,27 +5,34 @@
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
-import sqlalchemy as db
-from PyQt6.QtCore import QSortFilterProxyModel, QThread, pyqtSignal, QRect, QPoint, Qt, QTimer, pyqtSlot
-from PyQt6.QtGui import (QTextOption, QTextDocument, QAbstractTextDocumentLayout,
-                        QPalette, QIcon, QTextCursor, QTextCharFormat, QColor, QStatusTipEvent)
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QButtonGroup,
-                            QProgressBar, QMessageBox, QFileDialog,
-                            QStyledItemDelegate, QStyleOptionViewItem, QStyle)
-from myWindow import Ui_MainWindow
-from AbstractModel import MyTableModel
-from orm import Certificate as tbl, conn
-from sqlalchemy.sql import func
-from siteparser import parse, update_table, count_rows, check_database
-from datecheck import get_update_date, half_year
-from creatingfiles import save_excel_file, save_word_file
 from datetime import datetime
 from ctypes import windll
 
-myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
-windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid) # для отображения значка на панели
+import sqlalchemy as db
+from sqlalchemy.sql import func
+from PyQt6.QtCore import (QSortFilterProxyModel, QThread, pyqtSignal,
+                            QRect, QPoint, Qt, QTimer, pyqtSlot)
+from PyQt6.QtGui import (QAbstractTextDocumentLayout, QTextOption,
+                            QTextDocument, QPalette, QIcon, QTextCursor,
+                            QTextCharFormat, QColor, QStatusTipEvent)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QButtonGroup,
+                            QProgressBar, QMessageBox, QFileDialog,
+                            QStyledItemDelegate, QStyleOptionViewItem,
+                            QStyle)
 
-# Поток, получающий последние даты обновления БД (ФСТЭК и локального файла)
+from myWindow import Ui_MainWindow
+from AbstractModel import MyTableModel
+from orm import Certificate as tbl, conn
+from siteparser import parse, update_table, count_rows, check_database
+from datecheck import get_update_date, half_year
+from creatingfiles import save_excel_file, save_word_file
+
+# Для отображения значка на панели.
+myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
+windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+# Поток, получающий последние даты обновления БД.
+# (ФСТЭК и локального файла)
 class WorkerThreadLaunch(QThread):
     get_actual_dates = pyqtSignal(str, str)
     def run(self):
@@ -37,7 +44,7 @@ class WorkerThreadLaunch(QThread):
         self.quit()
 
 
-# Поток, обновляющий БД и progressbar
+# Поток, обновляющий БД и progressbar.
 class WorkerThreadUpdate(QThread):
     start_update = pyqtSignal(list)
     cancel_update = pyqtSignal()
@@ -45,10 +52,13 @@ class WorkerThreadUpdate(QThread):
     finish_update = pyqtSignal(list)
 
     def run(self):
-        data = parse()  # получаем результат функции parse
+        # Получаем результат функции parse.
+        data = parse()
         if data:
             self.start_update.emit(data)
-            rows = update_table(data)   # получаем кол-во строк, внесенных в базу
+
+            # Получаем кол-во строк, внесенных в базу.
+            rows = update_table(data)
             for row in rows:
                 self.update_progressbar.emit(row)
             check_database(data)
@@ -59,7 +69,7 @@ class WorkerThreadUpdate(QThread):
         self.quit()
 
 
-# Подсвечивает искомый текст, изменение цвета выделенных строк
+# Подсвечивает искомый текст, изменение цвета выделенных строк.
 class HighlightDelegate(QStyledItemDelegate):
     def __init__(self, column_width, parent=None):
         super(HighlightDelegate, self).__init__(parent)
@@ -71,12 +81,14 @@ class HighlightDelegate(QStyledItemDelegate):
         options = QStyleOptionViewItem(option)
         textOption = QTextOption()
         textOption.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         self.initStyleOption(options, index)
-        self.doc = QTextDocument(options.text)    # создаем объект для каждой ячейки таблицы
+
+        # Создаем объект для каждой ячейки таблицы.
+        self.doc = QTextDocument(options.text)
         self.doc.setDefaultTextOption(textOption)
 
-        for col, width in enumerate(self.column_width, start=1):    # меняем ширину текста в каждом QTextDocument()
+        # Меняем ширину текста в каждом QTextDocument()
+        for col, width in enumerate(self.column_width, start=1):
             if index.column() == col:
                 self.doc.setTextWidth(width)
 
@@ -84,16 +96,23 @@ class HighlightDelegate(QStyledItemDelegate):
         options.text = ""   # очищаем переменную
         style = QApplication.style() if options.widget is None \
             else options.widget.style()
-        style.drawControl(QStyle.ControlElement.CE_ItemViewItem, options, painter)
+        style.drawControl(QStyle.ControlElement.CE_ItemViewItem,
+                            options, painter)
 
         # Цвет при выделении строки
         ctx = QAbstractTextDocumentLayout.PaintContext()
         if option.state & QStyle.StateFlag.State_Selected:
-            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
-                QPalette.ColorGroup.Active, QPalette.ColorRole.HighlightedText))
+            ctx.palette.setColor(
+                QPalette.ColorRole.Text,
+                option.palette.color(
+                    QPalette.ColorGroup.Active,
+                    QPalette.ColorRole.HighlightedText))
         else:
-            ctx.palette.setColor(QPalette.ColorRole.Text, option.palette.color(
-                QPalette.ColorGroup.Active, QPalette.ColorRole.Text))
+            ctx.palette.setColor(
+                QPalette.ColorRole.Text,
+                option.palette.color(
+                    QPalette.ColorGroup.Active,
+                    QPalette.ColorRole.Text))
 
         textRect = style.subElementRect(
             QStyle.SubElement.SE_ItemViewItemText, options)
@@ -101,7 +120,8 @@ class HighlightDelegate(QStyledItemDelegate):
         if index.column() != 0:
             textRect.adjust(0, -4, 0, 0)
 
-        painter.translate(textRect.topLeft())   # Корректное распределение текста по ячейкам таблицы
+        # Корректное распределение текста по ячейкам таблицы.
+        painter.translate(textRect.topLeft())
         painter.setClipRect(textRect.translated(-textRect.topLeft()))
         self.doc.documentLayout().draw(painter, ctx)
         painter.restore()
@@ -142,13 +162,18 @@ class HighlightDelegate(QStyledItemDelegate):
 class Table(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
-        self.setupUi(self)  # Инициализация нашего дизайна
+        # Инициализация нашего дизайна
+        self.setupUi(self)
         self.setWindowTitle("Таблица сертификатов")
         self.showMaximized()
         self.menu.menuAction().setStatusTip("Создание файла")
         self.setWindowIcon(QIcon('icon.ico'))
         self.status = self.statusBar()
-        column_width = [80, 70, 110, 300, 200, 150, 150, 210, 300, 300, 103]
+
+        column_width = [
+            80, 70, 110, 300, 200, 150,
+            150, 210, 300, 300, 103
+            ]
 
         # Модель
         self.model = MyTableModel()
@@ -157,18 +182,29 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy = QSortFilterProxyModel()
         self.proxy.setSourceModel(self.model)
         self.proxy.setDynamicSortFilter(True)
-        self.proxy.setFilterKeyColumn(-1)   # Поиск по всей таблице (все колонки)
-        self.proxy.setFilterCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+
+        # Поиск по всей таблице (все колонки)
+        self.proxy.setFilterKeyColumn(-1)
+        self.proxy.setFilterCaseSensitivity(
+            Qt.CaseSensitivity.CaseInsensitive)
 
         # Считаем строки при запуске программы
         if self.model.rowCount() == 0:
-            self.status.showMessage(f'База данных пуста. Обновите базу данных, чтобы загрузить данные.')
-            self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
-        else:
-            self.status.showMessage(f'Всего сертификатов: {self.model.rowCount()}.')
-            self.status.setStyleSheet("background-color : #D8D8D8") # серый
+            self.status.showMessage(
+                f'База данных пуста. Обновите базу данных,\
+                чтобы загрузить данные.')
 
-        # Получаем даты изменений баз данных (на сайте ФСТЭК и локальная БД)
+            self.status.setStyleSheet(
+                "background-color : #FF9090") # бледно-красный
+        else:
+            self.status.showMessage(
+                f'Всего сертификатов: {self.model.rowCount()}.')
+
+            self.status.setStyleSheet(
+                "background-color : #D8D8D8") # серый
+
+        # Получаем даты изменений баз данных.
+        # (на сайте ФСТЭК и локальная БД)
         init_worker = WorkerThreadLaunch()
         init_worker.get_actual_dates.connect(self.set_update_date)
         init_worker.start()
@@ -179,13 +215,20 @@ class Table(QMainWindow, Ui_MainWindow):
 
         # Представление
         self.tableView.setModel(self.proxy)
-        self.tableView.setSortingEnabled(True)  # Активируем возможность сортировки по заголовкам в представлении
 
-        # Приведение заголовков и первых видимых строк таблицы к желаемому виду
+        # Активируем возможность сортировки
+        # по заголовкам в представлении.
+        self.tableView.setSortingEnabled(True)
+
+        # Приведение заголовков и первых видимых
+        # строк таблицы к желаемому виду.
         self.tableView.hideColumn(0)
         for col, width in enumerate(column_width, start=1):
-            self.tableView.horizontalHeader().resizeSection(col, width)
-        QTimer.singleShot(100, self.resize_visible_rows)    # Выполнение функции с задержкой
+            self.tableView.horizontalHeader().resizeSection(
+                col, width)
+
+        # Выполнение функции с задержкой
+        QTimer.singleShot(100, self.resize_visible_rows)
         
         # Создаем группу фильтров
         self.filters = QButtonGroup(self)
@@ -208,7 +251,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.checkBox_sup.stateChanged.connect(self.white)
         self.resetButton.clicked.connect(self.reset)
         self.proxy.layoutChanged.connect(self.resize_visible_rows)
-        self.tableView.verticalScrollBar().valueChanged.connect(self.resize_visible_rows)
+        self.tableView.verticalScrollBar().valueChanged.connect(
+            self.resize_visible_rows)
         self.searchBar.textChanged.connect(self.search)
 
     @pyqtSlot(str)
@@ -216,18 +260,24 @@ class Table(QMainWindow, Ui_MainWindow):
         self._delegate.setFilters(list(set(text.split())))
         self.tableView.viewport().update()
 
-    # При наведении курсора на меню "Файл" строка состояния становилась пустой
+    # При наведении курсора на меню "Файл"
+    # строка состояния становилась пустой.
     def event(self, e):
-        if e.type() == 112: # событие изменения строки состояния (в нижнем левом углу)
+        # Событие изменения строки состояния. (в нижнем левом углу)
+        if e.type() == 112:
             if e.tip() == '':
-                e = QStatusTipEvent(f'Всего сертификатов: {self.proxy.rowCount()}.')
+                e = QStatusTipEvent(
+                    f'Всего сертификатов: {self.proxy.rowCount()}.')
         return super().event(e)
 
     # Изменение высоты только видимых строк
     def resize_visible_rows(self):
-        viewport_rect = QRect(QPoint(0, 0), self.tableView.viewport().size())
+        viewport_rect = QRect(QPoint(0, 0),
+                                self.tableView.viewport().size())
+
         for row in range(0, self.proxy.rowCount() + 1):
-            rect = self.tableView.visualRect(self.proxy.index(row, 7))  # выбираем любую видимую колонку (костыль!)
+            # Выбираем любую видимую колонку. (костыль!)
+            rect = self.tableView.visualRect(self.proxy.index(row, 7))
             if viewport_rect.intersects(rect):  # если видимые строки
                 for _ in range(0, 20):
                     self.tableView.resizeRowToContents(row)
@@ -240,10 +290,12 @@ class Table(QMainWindow, Ui_MainWindow):
         self.actual_date.setText(actual_date)
     
     # Инициализация и запуск класса WorkerThread
-    def start_update_database(self):  # Обновление БД
-        self.refreshButton.setEnabled(False)    # во время обновления базы делаем кнопку неактивной
+    def start_update_database(self):
+        # Во время обновления базы делаем кнопку неактивной.
+        self.refreshButton.setEnabled(False)
         self.status.setStyleSheet("background-color : pink")
-        self.status.showMessage('Получаем данные с сайта ФСТЭК России...')
+        self.status.showMessage(
+                        'Получаем данные с сайта ФСТЭК России...')
         self.status.repaint()
 
         self.worker = WorkerThreadUpdate()
@@ -255,22 +307,39 @@ class Table(QMainWindow, Ui_MainWindow):
 
     # При отсутствии соединения с сайтом ФСТЭК
     def cancel_update_database(self):
-        self.status.setStyleSheet("background-color : #FF9090") # бледно-красный
-        self.status.showMessage('Нет соединения с сайтом ФСТЭК России. Проверьте интернет-соединение или повторите попытку позже.') 
+        # бледно-красный
+        self.status.setStyleSheet("background-color : #FF9090")
+        self.status.showMessage('Нет соединения с сайтом ФСТЭК России. \
+                                Проверьте интернет-соединение\
+                                или повторите попытку позже.') 
         self.status.repaint()
         self.refreshButton.setEnabled(True)
         self.worker.quit()
 
     # Начало обновления базы
     def update_database(self, data):
-        max = count_rows(data)  # маскимальное кол-во строк
-        self.progressbar = QProgressBar(maximum=max)    # задаем максимум progressbar'у
-        self.progressbar.setStyleSheet("max-height: 12px; border: 2px solid gray; border-radius: 7px; text-align: center; ")  # задаем стиль
-        self.statusBar().addPermanentWidget(self.progressbar)   # добавляем progressbar в statusbar
+        # маскимальное кол-во строк
+        max = count_rows(data)
+
+        # Задаем максимум progressbar'у.
+        self.progressbar = QProgressBar(maximum=max)
+
+        # Задаём стиль
+        self.progressbar.setStyleSheet(
+            "max-height: 12px;\
+            border: 2px solid gray;\
+            border-radius: 7px;\
+            text-align: center;"
+            )
+
+        # Добавляем progressbar в statusbar.
+        self.statusBar().addPermanentWidget(self.progressbar)
 
         self.status.showMessage('Обновление базы...')
         self.status.repaint()
-        self.progressbar.setHidden(False)   # отображаем progressbar
+
+        # Отображаем progressbar
+        self.progressbar.setHidden(False)
 
     # Анимация progressbar'а
     def evt_update_progress(self, value):
@@ -281,41 +350,69 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.showMessage('Загрузка таблицы...')
         self.status.repaint()
         self.model.update(results)
-        self.reset()    # сбарсываем фильтры, если были использованы во время обновления
+
+        # Сбарсываем фильтры, если были
+        # использованы во время обновления.
+        self.reset()
         self.searchBar.clear()
         self.refreshButton.setEnabled(True)
-        self.progressbar.setHidden(True)    # скрываем progressbar при завершении обновления базы
+
+        # Скрываем progressbar при завершении обновления базы.
+        self.progressbar.setHidden(True)
         n = self.model.rowCount()
-        self.status.setStyleSheet("background-color : #ADFF94") # салатовый FF9090
-        self.status.showMessage(f'База данных успешно обновлена. Всего сертификатов: {n}.')
-        self.last_update_date.setText(get_update_date())    # обновляем дату изменения файла базы данных
+        self.status.setStyleSheet("background-color : #ADFF94")
+        self.status.showMessage(f'База данных успешно обновлена. \
+                                Всего сертификатов: {n}.')
+
+        # Обновляем дату изменения файла базы данных.
+        self.last_update_date.setText(get_update_date())
         self.worker.quit()
 
-    # Методы класса
+    # Сохранение таблицы в файл
     def fileSave(self):
+        # Берём за основу Proxy-модель для экспорта
+        # таблицы с учётом применённых фильтров
+        model = self.proxy
         err = False
         r = ""
-        model = self.proxy  # берём за основу Proxy-модель для экспорта таблицы с учётом применённых фильтров
-        if (model.rowCount() == 0): # если строк 0, то отменяем сохранение
-            QMessageBox.information(self, "Сохранение файла", f"Нечего сохранять.\nСтрок {model.rowCount()} шт.")
-            return
+        table = []
         now = datetime.date(datetime.today())
         date_time = now.strftime("%d.%m.%Y")
         a = self.sender()
+
+        # Если строк 0, то отменяем сохранение.
+        if (model.rowCount() == 0): 
+            QMessageBox.information(self, "Сохранение файла",
+                                    f"Нечего сохранять.\n\
+                                    Строк {model.rowCount()} шт.")
+            return
+
         if a.text() == 'Экспортировать в Excel-файл':
             r = "(*.xlsx)"
         else:
             r = "(*.docx)"
 
-        fileName, ok = QFileDialog.getSaveFileName(self, "Сохранить файл", f"./Сертификаты {model.rowCount()} шт. {date_time}", f"All Files{r}")
+        fileName, ok = QFileDialog.getSaveFileName(
+                                self, "Сохранить файл",
+                                f"./Сертификаты {model.rowCount()} \
+                                шт. {date_time}",
+                                f"All Files{r}")
+
         if not fileName:    # кнопка "отмена"
             return 
 
-        table = []
-        for row in range(model.rowCount()): # цикл по строкам proxy модели
+        # Цикл по строкам proxy модели
+        for row in range(model.rowCount()):
             tbl_row = []
-            for column in range(1, model.columnCount()):    # цикл по колонкам, начиная с 1, а не с 0 (0 - колонка rowid)
-                tbl_row.append("{}".format(model.index(row, column).data() or ""))  # считываем данные каждой ячейки таблицы, если они имеются
+
+            # Цикл по колонкам, начиная с 1, а не с 0
+            # (0 - колонка rowid)
+            for column in range(1, model.columnCount()):
+
+                # Считываем данные каждой ячейки таблицы,
+                # если они имеются.
+                tbl_row.append("{}".format(
+                                model.index(row, column).data() or ""))
             table.append(tbl_row)
 
         self.status.setStyleSheet("background-color : #FFFF89")
@@ -329,7 +426,10 @@ class Table(QMainWindow, Ui_MainWindow):
             err = save_word_file(self, fileName, table)
         
         if not err:
-            QMessageBox.information(self, "Сохранение файла", f"Данные сохранены в файле: \n{fileName}")
+            QMessageBox.information(
+                            self, "Сохранение файла",
+                            f"Данные сохранены в файле: \n{fileName}")
+
             self.status.showMessage('Загрузка завершена.')
         else:
             self.status.showMessage('Ошибка загрузки.')
@@ -348,7 +448,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.proxy.layoutChanged.emit()
         n = self.proxy.rowCount()
         if n != 0:
-            self.status.setStyleSheet("background-color : #D8D8D8") # серый
+            # Серый цвет
+            self.status.setStyleSheet("background-color : #D8D8D8")
             self.status.showMessage(f'Сертификатов: {n}.')
         else:
             self.status.setStyleSheet("background-color : #D8D8D8")
@@ -358,58 +459,73 @@ class Table(QMainWindow, Ui_MainWindow):
     # Фильтры:
     # 1. Сертификат и поддержка не действительны
     def red(self):
-        red_filter = (tbl.support <= func.current_date()) & (tbl.date_end <= func.current_date()) & (tbl.support != '')
+        red_filter = (tbl.support <= func.current_date()) & \
+                        (tbl.date_end <= func.current_date()) & \
+                        (tbl.support != '')
         if self.radioButton_red.isChecked():
             self.myquery(red_filter)
             self.reset_checkBoxes()
 
     # 2. Поддержка не действительна
     def pink(self):
-        pink_filter = (tbl.support <= func.current_date()) & (tbl.date_end > func.current_date()) & (tbl.support != '')
+        pink_filter = (tbl.support <= func.current_date()) & \
+                        (tbl.date_end > func.current_date()) & \
+                        (tbl.support != '')
         if self.radioButton_pink.isChecked():
             self.myquery(pink_filter)
             self.reset_checkBoxes()
 
     # 3. Сертификат не действителен
     def yellow(self):
-        yellow_filter = (tbl.date_end <= func.current_date()) & (tbl.date_end != '#Н/Д')
+        yellow_filter = (tbl.date_end <= func.current_date()) & \
+                        (tbl.date_end != '#Н/Д')
         if self.radioButton_yellow.isChecked():
             self.myquery(yellow_filter)
             self.reset_checkBoxes()
             
-    # 4. Сертификат истечёт менее, чем через полгода (почему-то пропадает последний столбец)
+    # 4. Сертификат истечёт менее, чем через полгода
+    # (почему-то пропадает последний столбец)
     def gray(self):
-        gray_filter = (tbl.date_end <= half_year()) & (tbl.date_end > func.current_date())
+        gray_filter = (tbl.date_end <= half_year()) & \
+                        (tbl.date_end > func.current_date())
         if self.radioButton_gray.isChecked():
             self.myquery(gray_filter)
             self.reset_checkBoxes()
 
     # 5. Сертификат и поддержка действительны
     def white(self):
-        white_filter = (tbl.support > func.current_date()) & (tbl.date_end > func.current_date())
+        white_filter = (tbl.support > func.current_date()) & \
+                        (tbl.date_end > func.current_date())
         if self.radioButton_white.isChecked():
             self.checkBox_date.setEnabled(True)
             self.checkBox_sup.setEnabled(True)
             if self.checkBox_date.isChecked():
                 white_filter = white_filter + (tbl.date_end == '#Н/Д')
             if self.checkBox_sup.isChecked():
-                white_filter = white_filter + ((tbl.date_end > func.current_date()) & (tbl.support == ''))
+                white_filter = white_filter + (
+                                (tbl.date_end > func.current_date()) & \
+                                (tbl.support == ''))
             self.myquery(white_filter)
 
     # Сброс флагов
     def reset_checkBoxes(self):
-        if self.checkBox_date.isEnabled:    # если хотя бы один флаг включён
-            if self.checkBox_date.isChecked:    # убираем флаги, если они стоят
+        # Если хотя бы один флаг включён
+        if self.checkBox_date.isEnabled:
+            if self.checkBox_date.isChecked:
+                # Убираем флаги, если они стоят
                 self.checkBox_date.setChecked(False)
             if self.checkBox_sup.isChecked:
                 self.checkBox_sup.setChecked(False)
-            self.checkBox_date.setEnabled(False)    # отключаем флаги
+            self.checkBox_date.setEnabled(False)
             self.checkBox_sup.setEnabled(False)
 
     # Сброс фильтров
     def reset(self):
         self.reset_checkBoxes()
-        self.filters.setExclusive(False)    # делаем переключатели уникальными и отдельно выключаем каждый
+
+        # Делаем переключатели уникальными
+        # и отдельно выключаем каждый.
+        self.filters.setExclusive(False)
         self.radioButton_red.setChecked(False)
         self.radioButton_pink.setChecked(False)
         self.radioButton_yellow.setChecked(False)
@@ -424,7 +540,9 @@ class Table(QMainWindow, Ui_MainWindow):
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Загрузка...')
         self.status.repaint()
-        instanse = conn.execute(db.select([tbl]).filter(*args)).fetchall()
+        instanse = conn.execute(
+            db.select([tbl]).filter(*args)).fetchall()
+
         self.model.update(instanse)
         n = self.proxy.rowCount()
         if n != 0:
@@ -437,8 +555,10 @@ class Table(QMainWindow, Ui_MainWindow):
 
     # Событие закрытия приложения
     def closeEvent(self, event):
+
+        # Закрываем соединение с БД перед закрытием.
         if conn:
-            conn.close()    # закрываем соединение с БД перед закрытием
+            conn.close()
         self.status.setStyleSheet("background-color : #FFFF89")
         self.status.showMessage('Закрываем...')
         self.status.repaint()
