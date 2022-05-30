@@ -1,0 +1,6 @@
+__pycache__/
+output/
+build/
+dist/
+data_files/
+Отчёт*.xlsx
