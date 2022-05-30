@@ -456,18 +456,20 @@ class Testing(tk.Toplevel):
                 if self.student_answers[i] == correct:
                     self.points += 1
                     self.all_points.append(1)
+                else:
+                    self.all_points.append(0)
             else:
                 num_answers = len(self.correct_answers[i])
                 one_answer = round(1 / num_answers, 2)
+                points = 0
                 for ans in self.student_answers[i]:
                     if ans in self.correct_answers[i]:
                         self.points += one_answer
                         points += one_answer
-                    elif self.points > 0:
+                    elif points > 0:
                         self.points -= one_answer
                         points -= one_answer
-                self.all_points.append(points)
-                points = 0
+                self.all_points.append(round(points, 2))
 
         # Вычисление оценки
         self.score = round(self.points * 100 / self.max_score, 2)
@@ -548,25 +550,25 @@ class Testing(tk.Toplevel):
                 passwrd = open_database(get_pass=True)
                 test_day = dt.strftime(self.start_test, "%d.%m.%Y")
 
-                print(self.all_points, "\n")
-
-                # duration = dt.strftime(str(self.duration), "%d.%m.%Y")
-                print(self.duration, str(self.duration))
-
                 data = [
                     test_day, self.start_test_time,
-                    self.end_test_time, self.duration,
-                    self.points, self.score, self.mark,
-                    self.max_ques, self.max_score,
-                    get_update_date()
+                    self.end_test_time, str(self.duration),
+                    str(self.points) + " (" + str(self.score) + " %)",
+                    self.mark, self.max_ques, self.max_score,
+                    get_update_date(), self.all_points
                     ]
 
-                print(data)
-                # create_new(self.name, self.rows_added, self.correct_answers, passwrd, data)
-                create_new(self.name, self.rows_added, self.correct_answers, passwrd)
-                self.parent.destroy()
+                report_message = create_new(self.name, self.rows_added,
+                                            self.correct_answers,
+                                            passwrd, data)
+
+                if report_message:
+                    tk.messagebox.showwarning("Ошибка", report_message)
+                else:
+                    self.parent.destroy()
             else:
-                tk.messagebox.showwarning("Внимание","Подтвердите, что вы ознакомились с результатами.")
+                tk.messagebox.showwarning("Внимание",
+                    "Подтвердите, что вы ознакомились с результатами.")
         
 
 # Преподаватель
@@ -766,6 +768,7 @@ class UpdatingTest(tk.Toplevel):
         else:
             self.status.set("Ошибка. Указанного файла не существует.")
 
+
 # Смена логина
 class NewLogin(tk.Toplevel):
     def __init__(self, parent):
@@ -793,6 +796,7 @@ class NewLogin(tk.Toplevel):
             message = open_database(new_login=new_login)
             self.status.set(message)
         self.update_idletasks()
+
 
 # Смена пароля
 class NewPassword(tk.Toplevel):
@@ -916,11 +920,13 @@ class Criterion(tk.Toplevel):
         except:
             self.message.set("Значение должно быть целочисленным!")
 
+
 # Расположение окна в центре экрана
 def resize_window(window, width, height):
     w = (window.winfo_screenwidth() - width) // 2
     h = (window.winfo_screenheight() - height) // 2
     window.geometry(f'{width}x{height}+{w}+{h}')
+
 
 # Получение даты изменения файла БД
 def get_update_date():
@@ -958,6 +964,7 @@ def resource_path(relative_path):
         base_path = path.abspath(".")
 
     return path.join(base_path, relative_path)
+
 
 if __name__ == "__main__":
     result = get_update_date()
