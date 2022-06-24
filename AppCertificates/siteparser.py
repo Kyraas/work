@@ -28,13 +28,13 @@ month = {
     }
 
 # Константы
-URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/\
-        dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
+URL = "https://fstec.ru/tekhnicheskaya-zashchita-informatsii/" + \
+        "dokumenty-po-sertifikatsii/153-sistema-sertifikatsii/591"
   
 # Заголовки нужны для того, чтобы сервер
 # не посчитал нас за ботов и не заблокировал.
-HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
-            AppleWebKit/537.36 (KHTML, like Gecko) "
+HEADERS = {"user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" + \
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/96.0.4664.110 Safari/537.36 OPR/82.0.4227.43",
             "accept": "*/*"}
 

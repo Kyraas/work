@@ -44,11 +44,11 @@ def get_update_date():
         m = month.get(textdate[1])
         s = textdate[3]
         new_date = ""
-        new_date = "Актуальность текущей базы: " + textdate[2] + \
-            "." + m + "." + textdate[4] + " г. " + s[:-3]
+        new_date = "Актуальность текущей базы: " + \
+                    f"{textdate[2]}.{m}.{textdate[4]}г. {s[:-3]}"
     except OSError:
-        print(f"По указанному пути: {database_path} \
-                файл не существует, либо был перемещён.")
+        print(f"По указанному пути: {database_path}" +
+                "файл не существует, либо был перемещён.")
         new_date = "База данных не найдена."
     finally:
         return new_date

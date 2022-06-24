@@ -5,6 +5,7 @@
 # https://stackoverflow.com/questions/60353152/qtablewidget-resizerowstocontents-very-slow
 
 import sys
+from os import path
 from datetime import datetime
 from ctypes import windll
 
@@ -30,6 +31,16 @@ from creatingfiles import save_excel_file, save_word_file
 # Для отображения значка на панели.
 myappid = "'ООО ЦБИ'. ДДАС. Бондаренко М.А."
 windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = path.abspath(".")
+
+    return path.join(base_path, relative_path)
 
 # Поток, получающий последние даты обновления БД.
 # (ФСТЭК и локального файла)
@@ -167,7 +178,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.setWindowTitle("Таблица сертификатов")
         self.showMaximized()
         self.menu.menuAction().setStatusTip("Создание файла")
-        self.setWindowIcon(QIcon('icon.ico'))
+        icon_path = resource_path("icon.ico")
+        self.setWindowIcon(QIcon(icon_path))
         self.status = self.statusBar()
 
         column_width = [
@@ -191,8 +203,8 @@ class Table(QMainWindow, Ui_MainWindow):
         # Считаем строки при запуске программы
         if self.model.rowCount() == 0:
             self.status.showMessage(
-                f'База данных пуста. Обновите базу данных,\
-                чтобы загрузить данные.')
+                f"База данных пуста. Обновите базу данных," +
+                "чтобы загрузить данные.")
 
             self.status.setStyleSheet(
                 "background-color : #FF9090") # бледно-красный
@@ -309,9 +321,10 @@ class Table(QMainWindow, Ui_MainWindow):
     def cancel_update_database(self):
         # бледно-красный
         self.status.setStyleSheet("background-color : #FF9090")
-        self.status.showMessage('Нет соединения с сайтом ФСТЭК России. \
-                                Проверьте интернет-соединение\
-                                или повторите попытку позже.') 
+        self.status.showMessage("Нет соединения с сайтом ФСТЭК " +
+                                "России. Проверьте интернет-" +
+                                "соединение или повторите " +
+                                "попытку позже.") 
         self.status.repaint()
         self.refreshButton.setEnabled(True)
         self.worker.quit()
@@ -361,8 +374,8 @@ class Table(QMainWindow, Ui_MainWindow):
         self.progressbar.setHidden(True)
         n = self.model.rowCount()
         self.status.setStyleSheet("background-color : #ADFF94")
-        self.status.showMessage(f'База данных успешно обновлена. \
-                                Всего сертификатов: {n}.')
+        self.status.showMessage("База данных успешно обновлена. " +
+                                f"Всего сертификатов: {n}.")
 
         # Обновляем дату изменения файла базы данных.
         self.last_update_date.setText(get_update_date())
@@ -383,8 +396,8 @@ class Table(QMainWindow, Ui_MainWindow):
         # Если строк 0, то отменяем сохранение.
         if (model.rowCount() == 0): 
             QMessageBox.information(self, "Сохранение файла",
-                                    f"Нечего сохранять.\n\
-                                    Строк {model.rowCount()} шт.")
+                                    "Нечего сохранять.\n" +
+                                    f"Строк {model.rowCount()} шт.")
             return
 
         if a.text() == 'Экспортировать в Excel-файл':
@@ -394,9 +407,8 @@ class Table(QMainWindow, Ui_MainWindow):
 
         fileName, ok = QFileDialog.getSaveFileName(
                                 self, "Сохранить файл",
-                                f"./Сертификаты {model.rowCount()} \
-                                шт. {date_time}",
-                                f"All Files{r}")
+                                f"./Сертификаты {model.rowCount()}" +
+                                f"шт. {date_time}", f"All Files{r}")
 
         if not fileName:    # кнопка "отмена"
             return 

@@ -2,8 +2,6 @@
 from sqlite3 import connect, Error
 from openpyxl import load_workbook
 from re import match
-from os import path
-import sys
 
 # Подключаемся к БД
 def open_database(file_path=None, login=None, new_login=None,
@@ -11,9 +9,7 @@ def open_database(file_path=None, login=None, new_login=None,
                     name=None, time=None, tries=None, get_pass=None,
                     criterion=None, mark=None):
     try:
-        # database_path = resource_path("data_files/Database.db")
-        # con = connect(database_path)
-        con = connect("Database.db")
+        con = connect("tds.bin")
         cur = con.cursor()
         if new_login is not None:    # смена логина
             return change_login(con, cur, new_login)
@@ -45,6 +41,7 @@ def open_database(file_path=None, login=None, new_login=None,
         if con:
             cur.close()
             con.close()
+
 
 # Открываем Excel-файл
 def open_file(con, cur, file_path):
@@ -211,7 +208,7 @@ def get_config(cur):
 
 # Получение критериев оценки теста
 def get_criterion(cur):
-    result = cur.execute("SELECT num, mark, points FROM evaluation_criterion").fetchall()
+    result = cur.execute("SELECT points FROM evaluation_criterion").fetchall()
     return result
 
 
@@ -227,14 +224,3 @@ def set_criterion(con, cur, mark=None):
             cur.execute("UPDATE evaluation_criterion SET points = ? WHERE num = 3", (mark3,))
         con.commit()
         return "Данные успешно изменены."
-
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = path.abspath(".")
-
-    return path.join(base_path, relative_path)

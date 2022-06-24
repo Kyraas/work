@@ -2,15 +2,16 @@
 # https://konspekteka.ru/test-po-teme-po/
 # https://stackoverflow.com/questions/45171328/grab-set-in-tkinter-window
 # pyinstaller --noconfirm --onefile --windowed --name "Тестирование"  "C:/Users/ddas/Documents/GitRep/work/Test/main.py"
+# href="https://www.flaticon.com/ru/free-icons/-" title="статус проекта иконки">Статус проекта иконки от Vectors Market - Flaticon
 
+import sys
+from os import path
+from time import ctime
 import tkinter as tk
 from tkinter import ttk
-from tkinter import filedialog
-from time import ctime
-from os import path
+from tkinter import filedialog, messagebox
 from datetime import datetime as dt
-import sys
-from tkinter import messagebox
+from ctypes import windll
 
 from testdatabase import open_database
 from createreport import create_new
@@ -29,6 +30,7 @@ month = {
     "Nov": "11",
     "Dec": "12",
     }
+
 
 # Таблица
 class Table(tk.Frame):
@@ -54,13 +56,13 @@ class Table(tk.Frame):
 
 # Вход (главное окно)
 class Main(tk.Tk):
-    def __init__(self):
+    def __init__(self, icon):
         super().__init__()
 
         self.title("Тестирование")
         resize_window(self, 250, 200)
         self.minsize(height=200, width=100)
-        # # app.iconbitmap('icon.ico')
+        self.icon = icon
 
         tk.Label(self, text="Войти как:").pack(pady=(20,0), expand='yes', fill='both')
         
@@ -71,19 +73,21 @@ class Main(tk.Tk):
         self.bind('<Return>', self.user)
 
     def user(self, event=None):
-        window = User(self)
+        window = User(self, self.icon)
+        window.iconbitmap(self.icon)
         window.grab_set()
         window.focus_force()
 
     def login(self):
-        window = Login(self)
+        window = Login(self, self.icon)
+        window.iconbitmap(self.icon)
         window.grab_set()
         window.focus_force()
 
 
 # Вход для студента (промежуточное окно)
 class User(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, icon):
         super().__init__(parent)
         self.parent = parent
         last_update = tk.StringVar()
@@ -92,6 +96,7 @@ class User(tk.Toplevel):
         time_limit = tk.StringVar()
         self.student_name = tk.StringVar()
         self.error_name = tk.StringVar()
+        self.icon = icon
 
         self.title("Начать тест")
         resize_window(self, 400, 300)
@@ -164,6 +169,7 @@ class User(tk.Toplevel):
         self.destroy()
 
     def start_test(self, event=None):
+        icon = self.icon
         name = self.student_name.get()
         if name == "":
             self.error_name.set("Заполните поле!")
@@ -177,17 +183,19 @@ class User(tk.Toplevel):
             self.destroy()
             self.parent.withdraw()
             self = Testing(self.parent)
+            self.iconbitmap(icon)
 
 
 # Вход для преподавателя (промежуточное окно)
 class Login(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, icon):
         super().__init__(parent)
         self.parent = parent
         self.login = tk.StringVar()
         self.password = tk.StringVar()
         self.login_err = tk.StringVar()
         self.password_err = tk.StringVar()
+        self.icon = icon
 
         # Делает родительское окно неактивным, пока активно дочернее
         self.title("Вход")
@@ -251,7 +259,8 @@ class Login(tk.Toplevel):
         if log_err == "" and paswrd_err == "":
             self.parent.withdraw()  # скрываем родительское окно
             self.destroy()
-            win = Admin(self.parent)          
+            win = Admin(self.parent, self.icon)
+            win.iconbitmap(self.icon)
 
 
 # Студент (Тест)
@@ -290,15 +299,15 @@ class Testing(tk.Toplevel):
         
         # Верхний фрейм с таймером
         top_frame = tk.Frame(self)
-        top_frame.pack(anchor='nw', expand='true', fill='both')
-        tk.Label(top_frame, font="12", textvariable=self.time_limited
-                    ).pack(side="left", anchor='nw', padx=20,
-                            expand='true', fill='y')
-        self.timer_passed = tk.Label(top_frame, font="12",
-                                        textvariable=self.time_passed)
-        self.timer_passed.pack(side="left", anchor='w',
-                                padx=20, expand='true', fill='y')
+        top_frame.pack(padx=20, anchor='nw', expand='true', fill='both')
+        tk.Label(top_frame, font="12", textvariable=self.time_passed
+                    ).pack(side="left")
 
+        self.timer = tk.Label(top_frame, font="12",
+                                textvariable=self.time_limited)
+        self.timer.pack(side="left", anchor='nw',
+                        expand='true', fill='y')
+        
         # Текст и тип вопроса
         tk.Label(self, wraplength=600, justify="left",
                     font="bold 14", textvariable=self.question
@@ -316,49 +325,54 @@ class Testing(tk.Toplevel):
         bot_frame.pack(padx=(30,200), pady=10, anchor='w', expand='true', fill='both')
         self.btn_back = tk.Button(bot_frame, width=10, text="Назад", command=self.back)
         tk.Button(bot_frame, width=10, text="Далее",
-                    command=self.get_answer
+                    command=self.next
                     ).pack(side='right', expand='true', fill='both')
-        self.bind('<Return>', self.get_answer)
+        self.bind('<Return>', self.next)
         tk.Label(self, textvariable=self.warning
                     ).pack(pady=10, expand='true', fill='both')
 
         self.switch_page()
         self.count_down(max_time)
 
+    # Следующая страница
+    def next(self, event=None):
+        if self.get_answers():
+            if self.warning.get() != "":
+                self.warning.set("")
+            self.num += 1
+            self.switch_page()
+        else:
+            self.warning.set("Вариант ответа не был выбран!")
+
     # Предыдущая страница
     def back(self):
         if self.num > 0:
+            self.get_answers()
             self.num -= 1
             self.switch_page()
 
-    # Получение отмеченных ответов (Enter)
-    def get_answer(self, event=None):
+    # Получение отмеченных ответов
+    def get_answers(self):
         answer = self.selected.get()
+
         # Один вариант ответа
         if answer != 0:
             self.student_answers[self.num] = answer
-            self.num += 1
-            self.switch_page()
-    
+            return True
+
         # Несколько вариантов ответа
-        elif self.checked:
+        if self.checked:
             self.student_answers[self.num] = []
             n = len(self.answers_options[self.num])
-            empty_answer = True
+            completed_answer = False
             for i in range(n):
                 checkbtn_answer = self.checked[i].get()
                 if checkbtn_answer != 0:
-                    empty_answer = False
+                    completed_answer = True
                     self.student_answers[self.num].append(checkbtn_answer)
-            if empty_answer:
-                self.warning.set("Вариант ответа не был выбран!")
-            else:
-                self.num += 1
-                self.switch_page()
-        else:
-            self.warning.set("Вариант ответа не был выбран!")
+            return completed_answer
     
-    # Следующая страницв
+    # Смена страницы
     def switch_page(self):
         n = self.num
         self.selected.set(0)
@@ -390,8 +404,9 @@ class Testing(tk.Toplevel):
         old_widgets = self.answer_frame.pack_slaves()
         for widget in old_widgets:
             widget.destroy()
-        
-        if len(self.correct_answers[n]) == 1:
+        correct_answers = len(self.correct_answers[n])
+
+        if correct_answers == 1:
             if self.answer_type.get != "Выберите один ответ.":
                 self.answer_type.set("Выберите один ответ.")
             for i in range(amount):
@@ -405,8 +420,7 @@ class Testing(tk.Toplevel):
                                 variable=self.selected, value=i+1
                                 ).pack(anchor='w', expand='true', fill='y')
         else:
-            if self.answer_type.get != "Выберите несколько вариантов ответа.":
-                self.answer_type.set("Выберите несколько вариантов ответа.")
+            self.answer_type.set(f"Выберите {correct_answers} {set_ending(correct_answers)} ответа.")
             for i in range(amount):
                 value = tk.IntVar()
 
@@ -426,20 +440,23 @@ class Testing(tk.Toplevel):
 
     # Отчет времени
     def count_down(self, time_count=15, passed=0):
-        self.time_limited.set(f"Прошло: {passed} мин. Осталось: {time_count} мин.")
+        self.time_passed.set(f"Прошло: {passed} мин.")
+        self.time_limited.set(f"Осталось: {time_count} мин.")
         if time_count == 0:
             self.end_test()
+        elif time_count <= 5:
+            # messagebox.showinfo("Внимание", "До конца теста осталось 5 минут!")   # приостанавливает программу
+            self.timer.config(fg="red")
         time_count -= 1
         passed += 1
-        self.after(60000, self.count_down, time_count, passed)   #60 000 - минута
+        if time_count >= 0:
+            self.after(60000, self.count_down, time_count, passed)   #60 000 - минута
 
     # Завершительная страница теста
     def end_test(self):
         self.process = False
-        self.points = 0
-        points = 0
-        self.rows_added = []
-        self.all_points = []
+        self.points, points = 0, 0
+        self.rows_added, self.all_points, c_points = [], [], []
         resize_window(self, 700, 700)
         self.close_win = tk.BooleanVar()
         self.name, _, tries = open_database(test_info=True)
@@ -472,12 +489,16 @@ class Testing(tk.Toplevel):
                 self.all_points.append(round(points, 2))
 
         # Вычисление оценки
+        criterion_list = open_database(criterion=True)
+        for criterion in criterion_list:
+            c_points.append(int("".join(criterion)))
         self.score = round(self.points * 100 / self.max_score, 2)
-        if self.score >= 85:
+
+        if self.score >= c_points[0]:
             self.mark = "Отлично (5)"
-        elif self.score < 85 and self.score >= 64:
+        elif self.score >= c_points[1]:
             self.mark = "Хорошо (4)"
-        elif self.score < 64 and self.score >= 42:
+        elif self.score >=  c_points[2]:
             self.mark = "Удовлетворительно (3)"
         else:
             self.mark = "Неудовлетворительно (2)"
@@ -527,7 +548,7 @@ class Testing(tk.Toplevel):
                     command=self.close_window
                     ).pack(padx=10, side='left', fill='both')
 
-
+    # Начать тест заново
     def restart(self):
         if self.close_win.get():
             self.destroy()
@@ -573,7 +594,7 @@ class Testing(tk.Toplevel):
 
 # Преподаватель
 class Admin(tk.Toplevel):
-    def __init__(self, parent):
+    def __init__(self, parent, icon):
         super().__init__(parent)
         self.parent = parent
         self.status = tk.StringVar()
@@ -588,6 +609,7 @@ class Admin(tk.Toplevel):
         self.student_name.set(name)
         self.time_limit.set(time)
         self.tries.set(tries)
+        self.icon = icon
 
         resize_window(self, 470, 400)
         self.title("Данные теста")
@@ -674,18 +696,22 @@ class Admin(tk.Toplevel):
     def change_login(self):
         window = NewLogin(self)
         window.grab_set()
+        window.iconbitmap(self.icon)
 
     def change_password(self):
         window = NewPassword(self)
         window.grab_set()
+        window.iconbitmap(self.icon)
 
     def evaluation_criterion(self):
         window = Criterion(self)
         window.grab_set()
+        window.iconbitmap(self.icon)
 
     def update_test(self):
         window = UpdatingTest(self)
         window.grab_set()
+        window.iconbitmap(self.icon)
 
     def back(self):
         self.destroy()
@@ -849,19 +875,19 @@ class Criterion(tk.Toplevel):
         resize_window(self, 300, 300)
         self.minsize(height=280, width=250)
 
+        mark = []
         self.mark5 = tk.IntVar()
         self.mark4 = tk.IntVar()
         self.mark3 = tk.IntVar()
         self.message = tk.StringVar()
 
         result = open_database(criterion=True)
-        marks = tuple()
-        for i in result:
-            marks += (i[2],)
+        for value in result:
+            mark.append("".join(value))
         
-        self.mark5.set(marks[0])
-        self.mark4.set(marks[1])
-        self.mark3.set(marks[2])
+        self.mark5.set(str(mark[0]))
+        self.mark4.set(str(mark[1]))
+        self.mark3.set(str(mark[2]))
 
         frame1 = tk.Frame(self)
         frame2 = tk.Frame(self)
@@ -932,8 +958,7 @@ def resize_window(window, width, height):
 def get_update_date():
 
     # Получаем абсолютный путь
-    # database_path = resource_path("data_files/Database.db")
-    database_path = path.abspath("Database.db")
+    database_path = path.abspath("tds.bin")
     try:
         # Получаем дату последнего обновления файла Database.db
         c_time = path.getmtime(database_path)
@@ -966,10 +991,26 @@ def resource_path(relative_path):
     return path.join(base_path, relative_path)
 
 
+def set_ending(n):
+    d = n % 10
+    h = n % 100
+    if d == 1 and h != 11:
+        s = ""
+    elif 1 < d < 5 and not 11 < h < 15:
+        s = "а"
+    else:
+        s = "ов"
+    return "вариант" + s
+
+
 if __name__ == "__main__":
     result = get_update_date()
     if result != "База данных не найдена.":
-        app = Main()
+        myappid = 'ЦБИ. Бондаренко М.А. Тестирование. v1.0.0'
+        windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        icon_path = resource_path("icon.ico")
+        app = Main(icon_path)
+        app.iconbitmap(icon_path)
         app.mainloop()
     else:
-        messagebox.showerror("Ошибка", result)
+        messagebox.showerror("Error", "tds.bin not found.")
