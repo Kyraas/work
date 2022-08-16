@@ -25,7 +25,22 @@ class MyReceiver(QObject):
         while True:
             text = self.queue.get()
             self.mysignal.emit(text)
-            
+ 
+ # Класс окна приложения
+ class USBSwitch(QMainWindow, Ui_MainWindow):
+    def __init__(self):
+        super().__init__()
+        # Виджет, в который нужно вывести текст
+        self.console = QtWidgets.QPlainTextEdit(...)
+        # ...
+        
+    # Добавление текста в виджет
+    @pyqtSlot(str)
+    def append_text(self, text):
+        self.console.moveCursor(QTextCursor.MoveOperation.End)
+        self.console.insertPlainText(text)
+        
+
 queue = Queue()
 sys.stdout = WriteStream(queue)
 
