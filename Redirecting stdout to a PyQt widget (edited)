@@ -1,0 +1,42 @@
+from PyQt6.QtCore import pyqtSignal, QThread, QObject, pyqtSlot
+
+# Класс, добавляющий вывод print в очередь
+class WriteStream(object):
+    def __init__(self, queue):
+        self.queue = queue
+
+    def write(self, text):
+        self.queue.put(text)
+
+    def flush(self):
+        with self.queue.mutex:
+            self.queue.queue.clear()
+            
+# Перенаправление содержимого очереди в виджет
+class MyReceiver(QObject):
+    mysignal = pyqtSignal(str)
+
+    def __init__(self,queue,*args,**kwargs):
+        QObject.__init__(self,*args,**kwargs)
+        self.queue = queue
+
+    @pyqtSlot()
+    def run(self):
+        while True:
+            text = self.queue.get()
+            self.mysignal.emit(text)
+            
+queue = Queue()
+sys.stdout = WriteStream(queue)
+
+qapp = QApplication(sys.argv)
+# ...
+
+output_thread = QThread()
+my_receiver = MyReceiver(queue)
+my_receiver.mysignal.connect(win.append_text)
+my_receiver.moveToThread(output_thread)
+output_thread.started.connect(my_receiver.run)
+output_thread.start()
+
+sys.exit(qapp.exec())
