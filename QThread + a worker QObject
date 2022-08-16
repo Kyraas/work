@@ -1,0 +1,49 @@
+Declare Worker class
+For a basic example, check this class declaration for the Worker class:
+
+          class Worker : public QObject {
+              Q_OBJECT
+          public:
+              Worker();
+              ~Worker();
+          public slots:
+              void process();
+          signals:
+              void finished();
+              void error(QString err);
+          private:
+              // add your variables here
+          };
+
+We add at least one public slot which will be used to trigger the instance and make it start processing data once the thread has started. Now, let's see what the implementation for this basic class looks like.
+
+          Worker::Worker() { // Constructor
+              // you could copy data from constructor arguments to internal variables here.
+          }
+
+          Worker::~Worker() { // Destructor
+              // free resources
+          }
+
+          void Worker::process() { // Process. Start processing data.
+              // allocate resources using new here
+              qDebug("Hello World!");
+              emit finished();
+          }
+
+While this Worker class doesn't do anything special, it nevertheless contains all the required elements. It starts processing when its main function, in this case process(), is called and when it is done it emits the signal finished() which will then be used to trigger the shutdown of the QThread instance it is contained in.
+
+By the way, one extremely important thing to note here is that you should NEVER allocate heap objects (using new) in the constructor of the QObject class as this allocation is then performed on the main thread and not on the new QThread instance, meaning that the newly created object is then owned by the main thread and not the QThread instance. This will make your code fail to work. Instead, allocate such resources in the main function slot such as process() in this case as when that is called the object will be on the new thread instance and thus it will own the resource.
+
+Create a new Worker instance
+Now, let's see how to use this new construction by creating a new Worker instance and putting it on a QThread instance:
+
+          QThread* thread = new QThread();
+          Worker* worker = new Worker();
+          worker->moveToThread(thread);
+          connect( worker, &Worker::error, this, &MyClass::errorString);
+          connect( thread, &QThread::started, worker, &Worker::process);
+          connect( worker, &Worker::finished, thread, &QThread::quit);
+          connect( worker, &Worker::finished, worker, &Worker::deleteLater);
+          connect( thread, &QThread::finished, thread, &QThread::deleteLater);
+          thread->start();
