@@ -1,0 +1,64 @@
+from PyQt6.QtCore import pyqtSignal, QThread, QObject, pyqtSlot
+
+# Объект в потоке, выполняющий основные функции
+class Worker(QObject):
+    finished = pyqtSignal()
+
+    def __init__(self, args, parent=None):
+        super(Worker, self).__init__(parent)
+        self.running = True
+        # ...
+
+    @pyqtSlot()
+    def run(self):
+        self.running = True
+        while self.running:
+            # ...
+            
+    def stop(self):
+        self.running = False
+        
+
+# Останавливаем поток через worker
+def stop():
+    worker.stop()
+        
+@pyqtSlot()
+def foo(self):
+    # ...
+
+# Инициализация
+self.worker = None
+self.script_thread = None
+
+# Создаем объект потока
+thread = QThread()
+
+# Создаем объект класса worker
+worker = Worker(args)
+
+# Помещаем объект worker в поток thread
+worker.moveToThread(thread)
+
+# Соединяем сигналы и слоты:
+# При запуске потока запускается метод объекта worker
+thread.started.connect(worker.run)
+
+# После завершения работы объекта worker останавливается и поток
+worker.finished.connect(thread.quit)
+
+# После завершения работы потока удаляются раннее созданные объекты
+worker.finished.connect(worker.deleteLater)
+thread.finished.connect(thread.deleteLater)
+
+# Если после удаления объекта потока нужно совершить какие-либо действия
+thread.destroyed.connect(foo)
+
+# Запуск потока
+thread.start()
+
+# ...
+
+# Если поток запущен, то остановить
+if worker and worker.running:
+    stop()
