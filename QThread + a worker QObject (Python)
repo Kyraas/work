@@ -14,6 +14,7 @@ class Worker(QObject):
         self.running = True
         while self.running:
             # ...
+        self.finished.emit()
             
     def stop(self):
         self.running = False
