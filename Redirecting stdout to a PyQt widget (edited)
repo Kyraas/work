@@ -1,5 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, QThread, QObject, pyqtSlot
 from PyQt6.QtGui import QTextCursor
+from queue import Queue
+
 
 # Класс, добавляющий вывод print в очередь
 class WriteStream(object):
